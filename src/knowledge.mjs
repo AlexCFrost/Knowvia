@@ -103,15 +103,18 @@ export function retrieveEvidence(query, chunks, limit = 5) {
       const words = tokenize(`${chunk.heading} ${chunk.text}`);
       const frequencies = new Map();
       for (const word of words) frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
+      let matchedTerms = 0;
       const score = terms.reduce((sum, term) => {
         const tf = frequencies.get(term) ?? 0;
         if (!tf) return sum;
+        matchedTerms += 1;
         const idf = Math.log(1 + eligible.length / (1 + (documentFrequency.get(term) ?? 0)));
         return sum + (tf / (tf + 1.2)) * idf;
       }, 0);
       return {
         ...chunk,
         score,
+        matchedTerms,
         citation: {
           documentId: chunk.documentId,
           title: chunk.title,
@@ -122,7 +125,7 @@ export function retrieveEvidence(query, chunks, limit = 5) {
         },
       };
     })
-    .filter((result) => result.score > 0)
+    .filter((result) => result.score > 0 && (terms.length === 1 || result.matchedTerms >= 2))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
     .slice(0, limit);
 }

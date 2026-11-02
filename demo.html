@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7fb" />
+    <title>Support Knowledge Assistant</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="#" aria-label="Support Desk home"><span class="brand-mark">K</span><span>Knowvia <small>SUPPORT DESK</small></span></a>
+        <div class="workspace-label">WORKSPACE</div>
+        <button class="nav-item active"><span>⌕</span> Knowledge assistant</button>
+        <button class="nav-item" id="manage-docs"><span>▤</span> Knowledge sources <b id="source-count">3</b></button>
+        <div class="sidebar-bottom"><div class="avatar">S</div><div><strong>Support team</strong><small>Internal workspace</small></div><span class="dots">···</span></div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar"><div><span class="crumb">Support tools</span><span class="slash">/</span><strong>Knowledge assistant</strong></div><div class="top-actions"><span class="status-dot"></span> Sources synced <button class="help" title="Answers are retrieved from approved current sources">?</button></div></header>
+        <section class="content">
+          <div class="eyebrow"><span class="spark">✳</span> INTERNAL SUPPORT</div>
+          <h1>What can I help you solve?</h1>
+          <p class="intro">Ask a product question. Every result is grounded in approved support documentation.</p>
+
+          <section class="search-card" aria-label="Ask a question">
+            <label for="question">YOUR QUESTION</label>
+            <textarea id="question" rows="2" placeholder="e.g. How do I reset a user's MFA device?">How can an admin reset a user's MFA device?</textarea>
+            <div class="search-footer"><span><span class="lock">▣</span> Searches approved, current sources only</span><button class="ask-button" id="ask"><span>Search knowledge</span><span>↗</span></button></div>
+          </section>
+
+          <div class="suggestions"><span>TRY ASKING</span><button data-query="How can an admin reset a user's MFA device?">Reset an MFA device <span>↗</span></button><button data-query="What should I check if SSO login fails?">Troubleshoot SSO login <span>↗</span></button><button data-query="How long are audit logs retained?">Audit log retention <span>↗</span></button></div>
+
+          <section class="results" id="results" aria-live="polite">
+            <div class="results-heading"><div><h2>Evidence</h2><p id="result-summary">Search to see supporting passages.</p></div><span class="trust-badge"><span>✓</span> GROUNDED IN SOURCES</span></div>
+            <div id="answer-state" class="answer-state"><span class="state-icon">⌕</span><div><strong>Ready when you are</strong><p>Search a question to retrieve the most relevant approved passages.</p></div></div>
+            <div id="evidence-list" class="evidence-list"></div>
+          </section>
+
+          <div class="disclaimer"><span>ⓘ</span> This demo retrieves evidence only. Confirm the cited documentation before replying to a customer.</div>
+        </section>
+      </main>
+
+      <aside class="sources-panel" id="sources-panel">
+        <div class="panel-head"><div><span class="panel-kicker">LIBRARY</span><h2>Knowledge sources</h2></div><button id="close-sources" class="icon-button" aria-label="Close source panel">×</button></div>
+        <p class="panel-description">Approved, current documents are included in search.</p>
+        <div id="source-list" class="source-list"></div>
+        <label class="upload-button" for="file-upload"><span>＋</span> Add Markdown file</label>
+        <input id="file-upload" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden />
+        <div class="panel-note"><span>✓</span><div><strong>Source controls enabled</strong><p>Unapproved and outdated material is excluded from search results.</p></div></div>
+      </aside>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script type="module" src="src/demo.js"></script>
+  </body>
+</html>

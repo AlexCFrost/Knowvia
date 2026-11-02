@@ -19,6 +19,10 @@ The assistant answers support questions from approved documentation and tickets,
 
 This is the deterministic baseline for the RAG pipeline. Embeddings, PostgreSQL/pgvector persistence, PDF parsing, and model-based answer verification remain subsequent integration work.
 
+## Browser demo
+
+Run `python3 -m http.server 4173` from the project directory and open `http://localhost:4173/demo.html`. The demo includes sample identity and SSO guides, a retired guide to demonstrate source filtering, query suggestions, citation links, and Markdown upload. Uploaded files are held in browser memory for the current session. Search is lexical and returns supporting passages; it does not generate an answer.
+
 ## Initial product architecture
 
 - **Web app:** Next.js with TypeScript for the question interface, source viewer, and document administration.
