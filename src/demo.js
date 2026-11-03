@@ -110,7 +110,24 @@ function renderEvidence(result, index) {
   link.textContent = `${result.startLine === result.endLine ? `line ${result.startLine}` : `lines ${result.startLine}–${result.endLine}`} ↗`;
   link.addEventListener("click", () => openCitation(result));
   citationRow.append(link);
-  card.append(meta, passage, citationRow);
+
+  const explanation = document.createElement("details");
+  explanation.className = "why-result";
+  const summary = document.createElement("summary");
+  summary.textContent = "Why this result?";
+  const explanationText = document.createElement("p");
+  const matchedTerms = result.matchedQueryTerms ?? [];
+  explanationText.textContent = `Matched ${matchedTerms.length} ${matchedTerms.length === 1 ? "word" : "words"} from your question:`;
+  const termList = document.createElement("div");
+  termList.className = "matched-terms";
+  for (const term of matchedTerms) {
+    const chip = document.createElement("span");
+    chip.className = "matched-term";
+    chip.textContent = term;
+    termList.append(chip);
+  }
+  explanation.append(summary, explanationText, termList);
+  card.append(meta, passage, citationRow, explanation);
   return card;
 }
 
