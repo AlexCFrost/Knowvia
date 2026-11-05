@@ -5,6 +5,7 @@
 
 const DEFAULT_CHUNK_SIZE = 900;
 const DEFAULT_OVERLAP = 120;
+const STOP_WORDS = new Set(["a", "an", "and", "are", "can", "do", "does", "for", "from", "how", "i", "if", "in", "is", "it", "my", "of", "on", "should", "the", "to", "what", "when", "where", "which", "who", "why", "with"]);
 
 /**
  * Convert Markdown into citation-ready chunks. Input metadata should come from
@@ -88,7 +89,7 @@ export function retrieveEvidence(query, chunks, limit = 5) {
   if (!Array.isArray(chunks)) throw new TypeError("chunks must be an array");
   if (!Number.isInteger(limit) || limit < 1) throw new RangeError("limit must be positive");
 
-  const terms = tokenize(query);
+  const terms = [...new Set(tokenize(query))].filter((term) => !STOP_WORDS.has(term));
   if (!terms.length) return [];
   const eligible = chunks.filter((chunk) => chunk.approved && chunk.current && chunk.text);
   const documentFrequency = new Map();
@@ -103,6 +104,7 @@ export function retrieveEvidence(query, chunks, limit = 5) {
       const words = tokenize(`${chunk.heading} ${chunk.text}`);
       const frequencies = new Map();
       for (const word of words) frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
+      const matchedQueryTerms = terms.filter((term) => frequencies.has(term));
       const score = terms.reduce((sum, term) => {
         const tf = frequencies.get(term) ?? 0;
         if (!tf) return sum;
@@ -112,6 +114,8 @@ export function retrieveEvidence(query, chunks, limit = 5) {
       return {
         ...chunk,
         score,
+        matchedTerms: matchedQueryTerms.length,
+        matchedQueryTerms,
         citation: {
           documentId: chunk.documentId,
           title: chunk.title,
@@ -122,7 +126,7 @@ export function retrieveEvidence(query, chunks, limit = 5) {
         },
       };
     })
-    .filter((result) => result.score > 0)
+    .filter((result) => result.score > 0 && (terms.length === 1 || result.matchedTerms >= 2))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
     .slice(0, limit);
 }
