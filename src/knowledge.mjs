@@ -71,6 +71,7 @@ export function ingestMarkdown(markdown, metadata, options = {}) {
         documentId: metadata.documentId,
         title: metadata.title,
         version: metadata.version,
+        kind: metadata.kind ?? "Document",
         approved: metadata.approved === true,
         current: metadata.current === true,
         heading: section.heading,
@@ -101,15 +102,17 @@ export function retrieveEvidence(query, chunks, limit = 5) {
 
   return eligible
     .map((chunk) => {
-      const words = tokenize(`${chunk.heading} ${chunk.text}`);
+      const headingTerms = new Set(tokenize(chunk.heading));
+      const words = tokenize(chunk.text);
       const frequencies = new Map();
       for (const word of words) frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
-      const matchedQueryTerms = terms.filter((term) => frequencies.has(term));
+      const matchedQueryTerms = terms.filter((term) => frequencies.has(term) || headingTerms.has(term));
       const score = terms.reduce((sum, term) => {
         const tf = frequencies.get(term) ?? 0;
-        if (!tf) return sum;
+        const headingBoost = headingTerms.has(term) ? 1 : 0;
+        if (!tf && !headingBoost) return sum;
         const idf = Math.log(1 + eligible.length / (1 + (documentFrequency.get(term) ?? 0)));
-        return sum + (tf / (tf + 1.2)) * idf;
+        return sum + (tf / (tf + 1.2) + headingBoost) * idf;
       }, 0);
       return {
         ...chunk,

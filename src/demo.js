@@ -36,8 +36,11 @@ const askButton = document.querySelector("#ask");
 const evidenceList = document.querySelector("#evidence-list");
 const answerState = document.querySelector("#answer-state");
 const resultSummary = document.querySelector("#result-summary");
+const resultControls = document.querySelector("#result-controls");
+const sourceTypeFilter = document.querySelector("#source-type-filter");
 const sourcesPanel = document.querySelector("#sources-panel");
 const toast = document.querySelector("#toast");
+let currentResults = [];
 
 document.querySelector("#source-count").textContent = String(sourceDocs.length);
 renderSources();
@@ -55,6 +58,7 @@ document.querySelectorAll("[data-query]").forEach((button) => {
 document.querySelector("#manage-docs").addEventListener("click", () => sourcesPanel.classList.add("open"));
 document.querySelector("#close-sources").addEventListener("click", () => sourcesPanel.classList.remove("open"));
 document.querySelector("#file-upload").addEventListener("change", importMarkdown);
+sourceTypeFilter.addEventListener("change", renderResults);
 
 function search() {
   const query = question.value.trim();
@@ -64,21 +68,32 @@ function search() {
     return;
   }
 
-  const results = retrieveEvidence(query, chunks, 4);
+  currentResults = retrieveEvidence(query, chunks, 4);
+  sourceTypeFilter.value = "all";
+  renderResults();
+}
+
+function renderResults() {
+  const filter = sourceTypeFilter.value;
+  const results = filter === "all" ? currentResults : currentResults.filter((result) => result.kind === filter);
   evidenceList.replaceChildren();
-  if (!results.length) {
+  resultControls.hidden = currentResults.length === 0;
+  if (!currentResults.length) {
     resultSummary.textContent = "No supporting passages found in approved, current sources.";
     answerState.hidden = true;
     evidenceList.append(emptyState("No evidence found", "Try a more specific question, or add an approved current Markdown source."));
     return;
   }
 
-  resultSummary.textContent = `${results.length} relevant ${results.length === 1 ? "passage" : "passages"} from approved, current sources.`;
+  const total = currentResults.length;
+  const countSummary = `${results.length} of ${total} relevant ${total === 1 ? "passage" : "passages"}`;
+  resultSummary.textContent = `${countSummary} from approved, current sources${filter === "all" ? "." : ` · ${filter}.`}`;
   answerState.hidden = false;
   answerState.classList.add("has-results");
   answerState.querySelector(".state-icon").textContent = "✓";
-  answerState.querySelector("strong").textContent = "Review the source passages below";
-  answerState.querySelector("p").textContent = "These excerpts matched your question. Confirm the evidence before responding.";
+  answerState.querySelector("strong").textContent = results.length ? "Review the source passages below" : "No passages match this source type";
+  answerState.querySelector("p").textContent = results.length ? "These excerpts matched your question. Confirm the evidence before responding." : "Choose another source type to see the supporting evidence.";
+  if (!results.length) return;
   for (const [index, result] of results.entries()) evidenceList.append(renderEvidence(result, index));
 }
 
@@ -164,6 +179,11 @@ function renderSources() {
     item.append(top, tags);
     list.append(item);
   }
+  const selectedType = sourceTypeFilter.value || "all";
+  const kinds = [...new Set(sourceDocs.map((doc) => doc.kind))].sort((a, b) => a.localeCompare(b));
+  sourceTypeFilter.replaceChildren(new Option("All source types", "all"));
+  for (const kind of kinds) sourceTypeFilter.add(new Option(kind, kind));
+  sourceTypeFilter.value = kinds.includes(selectedType) ? selectedType : "all";
 }
 
 function tag(text, active) {
