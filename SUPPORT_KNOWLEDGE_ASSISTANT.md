@@ -17,11 +17,11 @@ The assistant answers support questions from approved documentation and tickets,
 
 `src/knowledge.mjs` implements a dependency-free Markdown ingestion and lexical retrieval core. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. Retrieval filters out documents unless both `approved` and `current` are true.
 
-This is the deterministic baseline for the RAG pipeline. Embeddings, PostgreSQL/pgvector persistence, PDF parsing, and model-based answer verification remain subsequent integration work.
+This is the deterministic baseline for the RAG pipeline. Retrieval gives extra weight to query terms found in a passage heading, while preserving body-text matching and current/approved filtering. Embeddings, PostgreSQL/pgvector persistence, PDF parsing, and model-based answer verification remain subsequent integration work.
 
 ## Browser demo
 
-Run `python3 -m http.server 4173` from the project directory and open `http://localhost:4173/demo.html`. The demo includes sample identity and SSO guides, a retired guide to demonstrate source filtering, query suggestions, citation links, and Markdown upload. Expand “Why this result?” to see which question terms matched each passage. Uploaded files are held in browser memory for the current session. Search is lexical and returns supporting passages; it does not generate an answer.
+Run `python3 -m http.server 4173` from the project directory and open `http://localhost:4173/demo.html`. The demo includes sample identity and SSO guides, a retired guide to demonstrate source filtering, query suggestions, citation links, and Markdown upload. Search results can be narrowed by source type, and the result count updates to show how many supporting passages are visible. Expand “Why this result?” to see which question terms matched each passage. Uploaded files are held in browser memory for the current session. Search is lexical and returns supporting passages; it does not generate an answer.
 
 ## Initial product architecture
 

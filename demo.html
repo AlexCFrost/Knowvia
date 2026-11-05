@@ -34,6 +34,12 @@
 
           <section class="results" id="results" aria-live="polite">
             <div class="results-heading"><div><h2>Evidence</h2><p id="result-summary">Search to see supporting passages.</p></div><span class="trust-badge"><span>✓</span> GROUNDED IN SOURCES</span></div>
+            <div class="result-controls" id="result-controls" hidden>
+              <label for="source-type-filter">Filter by source type</label>
+              <select id="source-type-filter" aria-label="Filter results by source type">
+                <option value="all">All source types</option>
+              </select>
+            </div>
             <div id="answer-state" class="answer-state"><span class="state-icon">⌕</span><div><strong>Ready when you are</strong><p>Search a question to retrieve the most relevant approved passages.</p></div></div>
             <div id="evidence-list" class="evidence-list"></div>
           </section>
