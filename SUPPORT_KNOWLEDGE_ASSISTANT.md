@@ -21,7 +21,7 @@ This is the deterministic baseline for the RAG pipeline. Retrieval gives extra w
 
 ## Browser demo
 
-Run `python3 -m http.server 4173` from the project directory and open `http://localhost:4173/demo.html`. The demo includes sample identity and SSO guides, a retired guide to demonstrate source filtering, query suggestions, citation links, and Markdown upload. Search results can be narrowed by source type, and the result count updates to show how many supporting passages are visible. Expand “Why this result?” to see which question terms matched each passage. Uploaded files are held in browser memory for the current session. Search is lexical and returns supporting passages; it does not generate an answer.
+Run `python3 -m http.server 4173` from the project directory and open `http://localhost:4173/demo.html`. The interface opens with a sample MFA search. Try the SSO suggestion for another supported query or the audit-log suggestion to demonstrate abstention when no evidence is available. Matched query terms are highlighted in each passage. Select a citation to open the original document and highlight the cited lines and matching terms. To demonstrate ingestion, download the sample API key policy from the source panel or upload another Markdown file. New uploads are session-only and excluded from retrieval until approved with “Approve for this demo”; after approval, search for API key rotation or the topic in your uploaded note. Search is lexical and returns supporting passages; it does not generate an answer.
 
 ## Initial product architecture
 

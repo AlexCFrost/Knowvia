@@ -3,61 +3,97 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f6f7fb" />
-    <title>Support Knowledge Assistant</title>
+    <meta name="theme-color" content="#f4f6fa" />
+    <meta name="description" content="Find grounded answers in approved support documentation, with source passages and citations." />
+    <title>Knowvia · Support knowledge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="shell">
-      <aside class="sidebar">
-        <a class="brand" href="#" aria-label="Support Desk home"><span class="brand-mark">K</span><span>Knowvia <small>SUPPORT DESK</small></span></a>
-        <div class="workspace-label">WORKSPACE</div>
-        <button class="nav-item active"><span>⌕</span> Knowledge assistant</button>
-        <button class="nav-item" id="manage-docs"><span>▤</span> Knowledge sources <b id="source-count">3</b></button>
-        <div class="sidebar-bottom"><div class="avatar">S</div><div><strong>Support team</strong><small>Internal workspace</small></div><span class="dots">···</span></div>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="#top" aria-label="Knowvia Support home">
+          <span class="brand-mark" aria-hidden="true">k</span>
+          <span class="brand-name">knowvia<span class="brand-caption">SUPPORT WORKSPACE</span></span>
+        </a>
+        <div class="nav-label">WORKSPACE</div>
+        <button class="nav-item active" type="button" aria-current="page"><span class="nav-icon">⌕</span><span>Knowledge assistant</span></button>
+        <button class="nav-item" id="manage-docs" type="button"><span class="nav-icon">▤</span><span>Knowledge sources</span><span class="nav-count" id="source-count">3</span></button>
+        <div class="sidebar-note"><span class="note-icon">✳</span><p><strong>Grounded support</strong><br />Every result links back to its source.</p></div>
+        <div class="sidebar-user"><div class="avatar">S</div><div><strong>Support team</strong><small>Internal workspace</small></div><span class="user-menu" aria-hidden="true">···</span></div>
       </aside>
 
-      <main class="main">
-        <header class="topbar"><div><span class="crumb">Support tools</span><span class="slash">/</span><strong>Knowledge assistant</strong></div><div class="top-actions"><span class="status-dot"></span> Sources synced <button class="help" title="Answers are retrieved from approved current sources">?</button></div></header>
-        <section class="content">
-          <div class="eyebrow"><span class="spark">✳</span> INTERNAL SUPPORT</div>
-          <h1>What can I help you solve?</h1>
-          <p class="intro">Ask a product question. Every result is grounded in approved support documentation.</p>
+      <main class="main" id="top">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>Support tools</span><span class="crumb-divider">/</span><strong>Knowledge assistant</strong></div>
+          <div class="sync-status"><span class="status-dot"></span><span>Knowledge base up to date</span><button class="help-button" title="Only approved and current sources appear in search." aria-label="About source controls">?</button></div>
+        </header>
 
-          <section class="search-card" aria-label="Ask a question">
-            <label for="question">YOUR QUESTION</label>
-            <textarea id="question" rows="2" placeholder="e.g. How do I reset a user's MFA device?">How can an admin reset a user's MFA device?</textarea>
-            <div class="search-footer"><span><span class="lock">▣</span> Searches approved, current sources only</span><button class="ask-button" id="ask"><span>Search knowledge</span><span>↗</span></button></div>
+        <div class="page-content">
+          <section class="welcome" aria-labelledby="page-title">
+            <div class="eyebrow"><span class="eyebrow-star">✳</span> SUPPORT KNOWLEDGE</div>
+            <h1 id="page-title">Find the answer.<br /><span>Show the evidence.</span></h1>
+            <p class="welcome-copy">Try a sample question or upload your own Markdown support note to search it in this session.</p>
           </section>
 
-          <div class="suggestions"><span>TRY ASKING</span><button data-query="How can an admin reset a user's MFA device?">Reset an MFA device <span>↗</span></button><button data-query="What should I check if SSO login fails?">Troubleshoot SSO login <span>↗</span></button><button data-query="How long are audit logs retained?">Audit log retention <span>↗</span></button></div>
+          <section class="search-card" aria-label="Search support knowledge">
+            <label for="question">WHAT DO YOU NEED HELP WITH?</label>
+            <textarea id="question" rows="2" placeholder="Ask a question about your product…">How can I reset a user's MFA device?</textarea>
+            <div class="search-bottom">
+              <span class="search-hint"><span class="shield-icon">♢</span> Approved, current sources only <span class="hint-divider">·</span> <kbd>↵</kbd> to search <span class="hint-secondary">· Shift + Enter for a new line</span></span>
+              <button class="ask-button" id="ask" type="button"><span>Search knowledge</span><span class="ask-arrow">↗</span></button>
+            </div>
+          </section>
 
-          <section class="results" id="results" aria-live="polite">
-            <div class="results-heading"><div><h2>Evidence</h2><p id="result-summary">Search to see supporting passages.</p></div><span class="trust-badge"><span>✓</span> GROUNDED IN SOURCES</span></div>
-            <div class="result-controls" id="result-controls" hidden>
-              <label for="source-type-filter">Filter by source type</label>
-              <select id="source-type-filter" aria-label="Filter results by source type">
-                <option value="all">All source types</option>
-              </select>
+          <div class="suggestions" aria-label="Suggested questions">
+            <span class="suggestion-label">TRY ASKING</span>
+            <button data-query="How can I reset a user's MFA device?" type="button">Reset an MFA device <span>↗</span></button>
+            <button data-query="What should I check if SSO login fails?" type="button">Troubleshoot SSO <span>↗</span></button>
+            <button data-query="How long are audit logs retained?" type="button">Audit log retention <span>↗</span></button>
+          </div>
+
+          <section class="results" id="results" aria-live="polite" aria-busy="false">
+            <div class="results-heading">
+              <div><div class="section-kicker">SEARCH RESULTS</div><h2>Supporting evidence</h2><p id="result-summary">Search to see supporting passages.</p></div>
+              <div class="grounded-badge"><span>✓</span> SOURCE GROUNDED</div>
+            </div>
+            <div class="result-toolbar" id="result-controls" hidden>
+              <div class="result-count"><span class="count-pip"></span><span id="visible-count">Results</span></div>
+              <label class="filter-control"><span>Source type</span><select id="source-type-filter" aria-label="Filter results by source type"><option value="all">All types</option></select></label>
             </div>
             <div id="answer-state" class="answer-state"><span class="state-icon">⌕</span><div><strong>Ready when you are</strong><p>Search a question to retrieve the most relevant approved passages.</p></div></div>
             <div id="evidence-list" class="evidence-list"></div>
           </section>
 
-          <div class="disclaimer"><span>ⓘ</span> This demo retrieves evidence only. Confirm the cited documentation before replying to a customer.</div>
-        </section>
+          <footer class="page-footer"><span class="footer-lock">♢</span><span>This assistant retrieves passages; it does not generate customer replies.</span><button type="button" id="manage-sources-footer">View source library <span>↗</span></button></footer>
+        </div>
       </main>
 
-      <aside class="sources-panel" id="sources-panel">
-        <div class="panel-head"><div><span class="panel-kicker">LIBRARY</span><h2>Knowledge sources</h2></div><button id="close-sources" class="icon-button" aria-label="Close source panel">×</button></div>
-        <p class="panel-description">Approved, current documents are included in search.</p>
+      <aside class="sources-panel" id="sources-panel" aria-label="Knowledge source library" aria-hidden="false">
+        <div class="panel-head"><div><span class="panel-kicker">DOCUMENT LIBRARY</span><h2>Knowledge sources</h2></div><button id="close-sources" class="icon-button" type="button" aria-label="Close source library">×</button></div>
+        <p class="panel-description">Search includes approved, current documents. Older versions stay out of results.</p>
+        <div class="library-summary"><span class="library-icon">▤</span><div><strong id="current-source-count">2 current sources</strong><small><span class="status-dot"></span> Ready to search</small></div></div>
+        <div class="source-list-heading"><span>YOUR DOCUMENTS</span><span id="library-total">03</span></div>
         <div id="source-list" class="source-list"></div>
         <label class="upload-button" for="file-upload"><span>＋</span> Add Markdown file</label>
         <input id="file-upload" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden />
-        <div class="panel-note"><span>✓</span><div><strong>Source controls enabled</strong><p>Unapproved and outdated material is excluded from search results.</p></div></div>
+        <p class="upload-caption">Markdown files stay in this browser session. New uploads need approval before search.</p>
+        <a class="sample-download" href="examples/api-key-support.md" download><span>↓</span> Download a sample document</a>
+        <div class="panel-note"><span class="panel-note-check">✓</span><div><strong>Source controls enabled</strong><p>Outdated and unapproved documents stay out of search.</p></div></div>
+        <div class="panel-footer">SOURCE STATUS <span><i></i> All systems ready</span></div>
       </aside>
+      <button class="panel-scrim" id="panel-scrim" type="button" aria-label="Close source library"></button>
     </div>
-    <div class="toast" id="toast" role="status"></div>
+
+    <dialog class="source-dialog" id="source-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-header"><div><span class="panel-kicker">SOURCE DOCUMENT</span><h2 id="dialog-title">Document title</h2><p id="dialog-meta"></p></div><button id="close-dialog" class="icon-button" type="button" aria-label="Close source document">×</button></div>
+      <div class="citation-callout" id="citation-callout"><span>↳</span><p>Showing the exact passage used for this result.</p></div>
+      <pre class="document-text" id="document-text"></pre>
+      <div class="dialog-footer"><span class="dialog-trust"><span>✓</span> Approved source</span><button id="dialog-done" class="dialog-done" type="button">Done</button></div>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="src/demo.js"></script>
   </body>
 </html>
