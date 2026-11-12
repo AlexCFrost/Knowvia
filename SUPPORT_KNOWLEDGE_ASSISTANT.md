@@ -15,9 +15,11 @@ The assistant answers support questions from approved documentation and tickets,
 
 ## Technical implementation
 
-`src/knowledge.mjs` implements a dependency-free Markdown ingestion and lexical retrieval core. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. Retrieval filters out documents unless both `approved` and `current` are true.
+`src/knowledge.mjs` implements dependency-free Markdown ingestion and retrieval. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. `retrieveEvidence` provides lexical search. `retrieveByEmbedding` ranks pre-embedded chunks with cosine similarity, supports a minimum similarity threshold, and applies the same approved/current source filter. Both retrieval paths return citation metadata.
 
-This is the deterministic baseline for the RAG pipeline. Retrieval gives extra weight to query terms found in a passage heading, while preserving body-text matching and current/approved filtering. Embeddings, PostgreSQL/pgvector persistence, PDF parsing, and model-based answer verification remain subsequent integration work.
+This is the retrieval foundation for the RAG pipeline. The vector search function accepts precomputed embeddings; connecting an embedding model and persistent vector store remains subsequent integration work. The lexical path gives extra weight to query terms found in a passage heading. PDF parsing and model-based answer verification also remain subsequent integration work.
+
+Run the retrieval checks with `node --test src/knowledge.test.mjs`.
 
 ## Browser demo
 
