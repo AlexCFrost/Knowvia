@@ -1,4 +1,4 @@
-import { ingestMarkdown, retrieveEvidence } from "./knowledge.mjs";
+import { ingestMarkdown, retrieveByEmbedding, retrieveEvidence } from "./knowledge.mjs";
 
 const sourceDocs = [
   {
@@ -54,9 +54,12 @@ const panelScrim = document.querySelector("#panel-scrim");
 const sourceDialog = document.querySelector("#source-dialog");
 const toast = document.querySelector("#toast");
 let currentResults = [];
+let vectorSearchAvailable = false;
+let embeddingPromise = null;
 
 renderSources();
 renderInitialResults();
+embeddingPromise = indexApprovedChunks();
 
 askButton.addEventListener("click", search);
 question.addEventListener("keydown", (event) => {
@@ -88,7 +91,7 @@ function renderInitialResults() {
   renderResults();
 }
 
-function search() {
+async function search() {
   const query = question.value.trim();
   if (!query) {
     showToast("Enter a question to search the knowledge sources.");
@@ -99,12 +102,23 @@ function search() {
   resultsRegion.setAttribute("aria-busy", "true");
   askButton.disabled = true;
   askButton.querySelector("span:first-child").textContent = "Searching…";
-  currentResults = retrieveEvidence(query, chunks, 4);
-  sourceTypeFilter.value = "all";
-  renderResults();
-  askButton.disabled = false;
-  askButton.querySelector("span:first-child").textContent = "Search knowledge";
-  resultsRegion.setAttribute("aria-busy", "false");
+  try {
+    await embeddingPromise;
+    const queryVector = vectorSearchAvailable ? await requestEmbeddings([{ text: query, purpose: "query" }]).then((vectors) => vectors[0]) : null;
+    currentResults = queryVector
+      ? retrieveByEmbedding(queryVector, chunks, 4, 0.25)
+      : retrieveEvidence(query, chunks, 4);
+    sourceTypeFilter.value = "all";
+    renderResults();
+    if (!vectorSearchAvailable) resultSummary.textContent += " · Keyword search (add GEMINI_API_KEY to enable semantic search).";
+    else resultSummary.textContent += " · Semantic search";
+  } catch (error) {
+    showToast(error.message || "Semantic search failed.");
+  } finally {
+    askButton.disabled = false;
+    askButton.querySelector("span:first-child").textContent = "Search knowledge";
+    resultsRegion.setAttribute("aria-busy", "false");
+  }
 }
 
 function renderResults() {
@@ -259,6 +273,13 @@ function approveSource(doc) {
     if (chunk.documentId === doc.documentId) chunk.approved = true;
   }
   renderSources();
+  const docChunks = chunks.filter((chunk) => chunk.documentId === doc.documentId);
+  embeddingPromise = embeddingPromise.then(async () => {
+    if (vectorSearchAvailable) {
+      const vectors = await requestEmbeddings(docChunks.map((chunk) => ({ text: chunk.text, title: doc.title, purpose: "document" })));
+      docChunks.forEach((chunk, index) => { chunk.embedding = vectors[index]; });
+    }
+  });
   showToast(`“${doc.title}” is approved for this demo session. You can search it now.`);
 }
 
@@ -362,6 +383,33 @@ async function importMarkdown(event) {
   } finally {
     event.target.value = "";
   }
+}
+
+async function indexApprovedChunks() {
+  try {
+    const approvedChunks = chunks.filter((chunk) => chunk.approved && chunk.current);
+    const vectors = await requestEmbeddings(approvedChunks.map((chunk) => ({
+      text: chunk.text,
+      title: chunk.title,
+      purpose: "document",
+    })));
+    approvedChunks.forEach((chunk, index) => { chunk.embedding = vectors[index]; });
+    vectorSearchAvailable = true;
+  } catch (error) {
+    vectorSearchAvailable = false;
+    if (!/GEMINI_API_KEY is not configured/.test(error.message)) console.warn("Semantic indexing unavailable:", error.message);
+  }
+}
+
+async function requestEmbeddings(items) {
+  const response = await fetch("/api/embeddings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `Embedding service returned ${response.status}`);
+  return payload.embeddings;
 }
 
 function emptyState(title, description) {
