@@ -21,6 +21,8 @@ This is the retrieval foundation for the RAG pipeline. `src/gemini-embeddings.mj
 
 Run the retrieval checks with `node --test src/knowledge.test.mjs`.
 
+Run the local retrieval evaluation with `node src/evaluate-retrieval.mjs`. It reports hit rate at 3, mean reciprocal rank, unsupported-question abstention, citation line validity, active-source filtering, and retrieval time against the demo's shared sample documents. The evaluation stays local and does not send the document corpus to an external model.
+
 ## Browser demo
 
 Copy `.env.example` to `.env.local`, put a fresh `GEMINI_API_KEY` in `.env.local`, and start the app with `node --env-file=.env.local server.mjs`. Open `http://localhost:4173`. The API key stays server-side. Without a key, the demo falls back to lexical search. Confirm Google AI Studio shows the project on its Free tier before using a key; a paid-tier project can incur charges. Do not commit `.env.local`.
