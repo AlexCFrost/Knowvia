@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { retrieveByEmbedding } from "./knowledge.mjs";
+import { retrieveByEmbedding, retrieveHybrid } from "./knowledge.mjs";
 
 function chunk(id, embedding, overrides = {}) {
   return {
@@ -89,4 +89,40 @@ test("rejects zero vectors in stored chunk embeddings", () => {
 test("returns no matches when all eligible similarities fall below the threshold", () => {
   const results = retrieveByEmbedding([1, 0], [chunk("sideways", [0, 1])], 5, 0.5);
   assert.deepEqual(results, []);
+});
+
+test("fuses keyword and semantic rankings while preserving citation metadata", () => {
+  const results = retrieveHybrid("MFA reset", [1, 0], [
+    chunk("combined", [0.8, 0.6], { heading: "MFA reset", text: "Use the MFA reset workflow." }),
+    chunk("semantic-only", [1, 0], { heading: "Authentication recovery", text: "Restore the sign-in factor." }),
+    chunk("pending", [1, 0], { heading: "MFA reset", text: "MFA reset draft", approved: false }),
+    chunk("outdated", [1, 0], { heading: "MFA reset", text: "MFA reset old procedure", current: false }),
+  ], { limit: 5, minSimilarity: 0.5 });
+
+  assert.deepEqual(results.map((result) => result.id), ["combined", "semantic-only"]);
+  assert.equal(results[0].keywordRank, 1);
+  assert.equal(results[0].semanticRank, 2);
+  assert.equal(results[1].keywordRank, null);
+  assert.equal(results[1].semanticRank, 1);
+  assert.equal(results[0].citation.documentId, "doc-combined");
+});
+
+test("falls back to keyword ranking when no query embedding is available", () => {
+  const results = retrieveHybrid("MFA reset", null, [
+    chunk("lexical", undefined, { heading: "MFA reset", text: "MFA reset steps" }),
+    chunk("pending", undefined, { heading: "MFA reset", text: "MFA reset draft", approved: false }),
+  ]);
+
+  assert.deepEqual(results.map((result) => result.id), ["lexical"]);
+  assert.equal(results[0].keywordRank, 1);
+  assert.equal(results[0].semanticRank, null);
+});
+
+test("validates hybrid options and supports an empty corpus", () => {
+  assert.deepEqual(retrieveHybrid("MFA reset", null, []), []);
+  assert.throws(() => retrieveHybrid("MFA reset", null, [], { limit: 0 }), /limit must be positive/);
+  assert.throws(() => retrieveHybrid("MFA reset", null, [], { rrfK: 0 }), /rrfK must be positive/);
+  assert.throws(() => retrieveHybrid("MFA reset", null, [], { keywordWeight: -1 }), /keywordWeight must be non-negative/);
+  assert.throws(() => retrieveHybrid("MFA reset", null, [], { semanticWeight: Number.NaN }), /semanticWeight must be non-negative/);
+  assert.throws(() => retrieveHybrid("MFA reset", null, [], { keywordWeight: 0, semanticWeight: 0 }), /at least one retrieval weight/);
 });

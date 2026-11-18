@@ -15,9 +15,9 @@ The assistant answers support questions from approved documentation and tickets,
 
 ## Technical implementation
 
-`src/knowledge.mjs` implements dependency-free Markdown ingestion and retrieval. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. `retrieveEvidence` provides lexical search. `retrieveByEmbedding` ranks pre-embedded chunks with cosine similarity, supports a minimum similarity threshold, and applies the same approved/current source filter. Both retrieval paths return citation metadata.
+`src/knowledge.mjs` implements dependency-free Markdown ingestion and retrieval. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. `retrieveEvidence` provides lexical search. `retrieveByEmbedding` ranks pre-embedded chunks with cosine similarity, supports a minimum similarity threshold, and applies the approved/current source filter. `retrieveHybrid` merges keyword and semantic rankings with weighted reciprocal rank fusion (RRF), retains citation metadata, and falls back to keyword results when no query embedding is available.
 
-This is the retrieval foundation for the RAG pipeline. `src/gemini-embeddings.mjs` connects it to Google's `gemini-embedding-2` embedding endpoint, and `server.mjs` keeps the API key on the server. The browser demo embeds approved/current document passages and questions, then ranks evidence with cosine similarity. The lexical path remains available when no key is configured. PDF parsing, persistent vector storage, and model-based answer verification remain subsequent integration work.
+This is the retrieval foundation for the RAG pipeline. `src/gemini-embeddings.mjs` connects it to Google's `gemini-embedding-2` embedding endpoint, and `server.mjs` keeps the API key on the server. The browser demo combines keyword and cosine-similarity rankings for each question; if the embedding service is unavailable, it shows keyword results. PDF parsing, persistent vector storage, and model-based answer verification remain subsequent integration work.
 
 Run the retrieval checks with `node --test src/knowledge.test.mjs`.
 

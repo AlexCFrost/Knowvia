@@ -182,6 +182,58 @@ export function retrieveByEmbedding(queryEmbedding, chunks, limit = 5, minSimila
     .slice(0, limit);
 }
 
+/**
+ * Merge lexical and vector rankings with weighted reciprocal rank fusion.
+ * Results keep the citation data from either retrieval path and expose each
+ * source rank for inspection. A missing query embedding gives keyword-only
+ * results, which keeps search available if the embedding service is down.
+ */
+export function retrieveHybrid(query, queryEmbedding, chunks, options = {}) {
+  if (!Array.isArray(chunks)) throw new TypeError("chunks must be an array");
+  const {
+    limit = 5,
+    minSimilarity = 0.25,
+    rrfK = 60,
+    keywordWeight = 1,
+    semanticWeight = 1,
+  } = options;
+  if (!Number.isInteger(limit) || limit < 1) throw new RangeError("limit must be positive");
+  if (!Number.isFinite(rrfK) || rrfK <= 0) throw new RangeError("rrfK must be positive");
+  if (!Number.isFinite(keywordWeight) || keywordWeight < 0) throw new RangeError("keywordWeight must be non-negative");
+  if (!Number.isFinite(semanticWeight) || semanticWeight < 0) throw new RangeError("semanticWeight must be non-negative");
+  if (keywordWeight + semanticWeight === 0) throw new RangeError("at least one retrieval weight must be positive");
+
+  const candidateLimit = Math.max(1, chunks.length);
+  const keywordResults = keywordWeight > 0 ? retrieveEvidence(query, chunks, candidateLimit) : [];
+  const semanticResults = queryEmbedding == null
+    ? []
+    : semanticWeight > 0 ? retrieveByEmbedding(queryEmbedding, chunks, candidateLimit, minSimilarity) : [];
+  const fused = new Map();
+
+  const addRankedResults = (results, rankName, weight) => {
+    results.forEach((result, index) => {
+      const rank = index + 1;
+      const existing = fused.get(result.id) ?? { ...result, keywordRank: null, semanticRank: null, score: 0 };
+      existing[rankName] = rank;
+      existing.score += weight / (rrfK + rank);
+      if (rankName === "keywordRank") {
+        existing.lexicalScore = result.score;
+        existing.matchedTerms = result.matchedTerms;
+        existing.matchedQueryTerms = result.matchedQueryTerms;
+      } else {
+        existing.similarity = result.similarity;
+      }
+      fused.set(result.id, existing);
+    });
+  };
+
+  addRankedResults(keywordResults, "keywordRank", keywordWeight);
+  addRankedResults(semanticResults, "semanticRank", semanticWeight);
+  return [...fused.values()]
+    .sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)))
+    .slice(0, limit);
+}
+
 function normalizeEmbedding(embedding, label) {
   const isTypedNumericArray = ArrayBuffer.isView(embedding) && !(embedding instanceof DataView);
   if ((!Array.isArray(embedding) && !isTypedNumericArray) || embedding.length === 0) {

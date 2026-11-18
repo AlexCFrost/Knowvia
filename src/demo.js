@@ -1,4 +1,4 @@
-import { ingestMarkdown, retrieveByEmbedding, retrieveEvidence } from "./knowledge.mjs";
+import { ingestMarkdown, retrieveHybrid, retrieveEvidence } from "./knowledge.mjs";
 import { sourceDocs } from "./sample-documents.mjs";
 
 const chunks = sourceDocs.flatMap((doc) => ingestMarkdown(doc.markdown, doc));
@@ -66,14 +66,21 @@ async function search() {
   askButton.querySelector("span:first-child").textContent = "Searching…";
   try {
     await embeddingPromise;
-    const queryVector = vectorSearchAvailable ? await requestEmbeddings([{ text: query, purpose: "query" }]).then((vectors) => vectors[0]) : null;
-    currentResults = queryVector
-      ? retrieveByEmbedding(queryVector, chunks, 4, 0.25)
-      : retrieveEvidence(query, chunks, 4);
+    let queryVector = null;
+    let retrievalMode = "Keyword search";
+    if (vectorSearchAvailable) {
+      try {
+        queryVector = (await requestEmbeddings([{ text: query, purpose: "query" }]))[0];
+        retrievalMode = "Hybrid search (keyword + semantic)";
+      } catch {
+        retrievalMode = "Keyword fallback (semantic unavailable)";
+        showToast("Semantic search is unavailable. Showing keyword results.");
+      }
+    }
+    currentResults = retrieveHybrid(query, queryVector, chunks, { limit: 4, minSimilarity: 0.25 });
     sourceTypeFilter.value = "all";
     renderResults();
-    if (!vectorSearchAvailable) resultSummary.textContent += " · Keyword search (add GEMINI_API_KEY to enable semantic search).";
-    else resultSummary.textContent += " · Semantic search";
+    resultSummary.textContent += ` · ${retrievalMode}`;
   } catch (error) {
     showToast(error.message || "Semantic search failed.");
   } finally {
