@@ -6,6 +6,8 @@ const question = document.querySelector("#question");
 const askButton = document.querySelector("#ask");
 const resultsRegion = document.querySelector("#results");
 const evidenceList = document.querySelector("#evidence-list");
+const answerPanel = document.querySelector("#answer-panel");
+const answerContent = document.querySelector("#answer-content");
 const answerState = document.querySelector("#answer-state");
 const resultSummary = document.querySelector("#result-summary");
 const visibleCount = document.querySelector("#visible-count");
@@ -62,6 +64,8 @@ async function search() {
   }
 
   resultsRegion.setAttribute("aria-busy", "true");
+  answerPanel.hidden = false;
+  answerContent.textContent = "Checking the retrieved passages…";
   askButton.disabled = true;
   askButton.querySelector("span:first-child").textContent = "Searching…";
   try {
@@ -81,6 +85,15 @@ async function search() {
     sourceTypeFilter.value = "all";
     renderResults();
     resultSummary.textContent += ` · ${retrievalMode}`;
+    if (!currentResults.length) {
+      renderAnswer({ abstained: true, answer: "I don't have enough evidence in the approved, current documents to answer that.", claims: [] });
+    } else {
+      try {
+        renderAnswer(await requestAnswer(query, currentResults));
+      } catch {
+        renderAnswerError();
+      }
+    }
   } catch (error) {
     showToast(error.message || "Semantic search failed.");
   } finally {
@@ -170,6 +183,78 @@ function renderEvidence(result, index) {
 
   card.append(top, title, documentMeta, passage, matched, footer);
   return card;
+}
+
+function renderAnswer(answer) {
+  answerPanel.hidden = false;
+  answerContent.replaceChildren();
+  if (answer.abstained) {
+    const message = document.createElement("p");
+    message.className = "answer-abstention";
+    message.textContent = answer.answer;
+    answerContent.append(message);
+    return;
+  }
+
+  for (const claim of answer.claims) {
+    const item = document.createElement("article");
+    item.className = "answer-claim";
+    const text = document.createElement("p");
+    text.textContent = claim.text;
+    const citations = document.createElement("div");
+    citations.className = "answer-citations";
+    for (const citation of claim.citations) {
+      const link = document.createElement("button");
+      link.type = "button";
+      link.className = "answer-citation";
+      const location = citation.pageNumber ? `Page ${citation.pageNumber}`
+        : citation.startLine === citation.endLine ? `Line ${citation.startLine}`
+          : `Lines ${citation.startLine}–${citation.endLine}`;
+      link.textContent = `${citation.title} · ${citation.version} · ${location}`;
+      link.addEventListener("click", () => {
+        const source = sourceDocs.find((doc) => doc.documentId === citation.documentId);
+        if (source) openSource(source, citation);
+      });
+      citations.append(link);
+    }
+    item.append(text, citations);
+    answerContent.append(item);
+  }
+}
+
+function renderAnswerError() {
+  answerPanel.hidden = false;
+  answerContent.replaceChildren();
+  const message = document.createElement("p");
+  message.className = "answer-error";
+  message.textContent = "I couldn't generate an answer right now. The retrieved passages are shown below.";
+  answerContent.append(message);
+}
+
+async function requestAnswer(query, results) {
+  const response = await fetch("/api/answers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question: query,
+      evidence: results.map((result) => ({
+        id: result.id,
+        documentId: result.documentId,
+        title: result.title,
+        version: result.version,
+        heading: result.heading,
+        text: result.text,
+        startLine: result.startLine,
+        endLine: result.endLine,
+        pageNumber: result.pageNumber,
+        approved: result.approved,
+        current: result.current,
+      })),
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `Answer service returned ${response.status}`);
+  return payload;
 }
 
 function renderSources() {

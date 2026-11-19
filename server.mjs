@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { embedText } from "./src/gemini-embeddings.mjs";
+import { generateGroundedAnswer } from "./src/gemini-answers.mjs";
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const port = Number(process.env.PORT || 4173);
@@ -14,9 +15,24 @@ const mimeTypes = {
 
 const server = createServer(async (request, response) => {
   response.setHeader("X-Content-Type-Options", "nosniff");
+  if (request.method === "POST" && request.url === "/api/answers") {
+    try {
+      const body = await readJson(request, 64 * 1024);
+      const result = await generateGroundedAnswer(body.question, body.evidence);
+      sendJson(response, 200, result);
+    } catch (error) {
+      const status = error.status && error.status >= 400 && error.status < 500 ? 502 : 400;
+      sendJson(response, status, { error: error.message || "Could not generate an answer" });
+    }
+    return;
+  }
+
   if (request.method === "POST" && request.url === "/api/embeddings") {
     try {
       const body = await readJson(request, 64 * 1024);
+      if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 32) {
+        throw new Error("items must contain between 1 and 32 entries");
+      }
       const vectors = await Promise.all(body.items.map(({ text, purpose, title }) => embedText(text, purpose, process.env.GEMINI_API_KEY, { title })));
       sendJson(response, 200, { embeddings: vectors });
     } catch (error) {
@@ -58,9 +74,6 @@ async function readJson(request, limit) {
     parts.push(part);
   }
   const body = JSON.parse(Buffer.concat(parts).toString("utf8"));
-  if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 32) {
-    throw new Error("items must contain between 1 and 32 entries");
-  }
   return body;
 }
 
