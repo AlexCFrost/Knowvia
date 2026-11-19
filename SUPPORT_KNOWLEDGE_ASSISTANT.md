@@ -19,7 +19,7 @@ The assistant answers support questions from approved documentation and tickets,
 
 `src/gemini-answers.mjs` uses Google's Free-tier `gemini-3.5-flash-lite` to generate short, claim-level answers from retrieved approved/current passages. Each claim includes a citation ID that the server resolves against the supplied passages; unknown IDs fail closed. The model returns an explicit abstention when it cannot answer, and the app also abstains without calling the model when retrieval returns no evidence. Claim citations open the cited source passage.
 
-`src/gemini-embeddings.mjs` connects semantic retrieval to Google's `gemini-embedding-2` embedding endpoint. `server.mjs` serves the local demo and its APIs; `api/answers.mjs` exposes the answer endpoint as a Vercel Function. Both read `GEMINI_API_KEY` on the server. The browser demo combines keyword and cosine-similarity rankings for each question, then sends only those retrieved passages to answer generation. PDF parsing and persistent vector storage remain subsequent integration work.
+`src/gemini-embeddings.mjs` connects semantic retrieval to Google's `gemini-embedding-2` embedding endpoint. `src/pdf-ingestion.mjs` extracts selectable PDF text by page with Mozilla PDF.js and preserves that page number on every chunk and citation. `server.mjs` serves the local demo and its APIs; `api/answers.mjs` and `api/ingest-pdf.mjs` expose the APIs as Vercel Functions. The browser demo combines keyword and cosine-similarity rankings for each question, then sends only retrieved passages to answer generation. Persistent document storage remains subsequent integration work.
 
 Run the retrieval checks with `node --test src/knowledge.test.mjs`.
 
@@ -29,7 +29,7 @@ Run the local retrieval evaluation with `node src/evaluate-retrieval.mjs`. It re
 
 Copy `.env.example` to `.env.local`, put a `GEMINI_API_KEY` in `.env.local`, and start the app with `node --env-file=.env.local server.mjs`. Open `http://localhost:4173`. The API key stays server-side. Without a key, retrieval falls back to keyword search and grounded answer generation shows a service-unavailable message. Confirm Google AI Studio shows the project on its Free tier before using a key; a paid-tier project can incur charges. Do not commit `.env.local`.
 
-The interface opens with a sample MFA search. Try the SSO suggestion for another supported query or the audit-log suggestion to demonstrate abstention when no evidence is available. Each answer claim links to one or more supporting passages; selecting a citation opens the source and highlights its lines. To demonstrate ingestion, upload another Markdown file; new uploads are session-only and excluded from retrieval until approved with “Approve for this demo.” Search for a topic in the uploaded note after approval.
+The interface opens with a sample MFA search. Try the SSO suggestion for another supported query or the audit-log suggestion to demonstrate abstention when no evidence is available. Each answer claim links to one or more supporting passages; selecting a citation opens the source and highlights its lines or PDF page. To demonstrate ingestion, upload the sample PDF or another PDF/Markdown file; PDFs must contain selectable text, be smaller than 2 MB, and have at most 100 pages. Uploads are session-only and excluded from retrieval until approved with “Approve for this demo.” Search for a topic in the uploaded document after approval.
 
 ## Initial product architecture
 

@@ -205,6 +205,10 @@ kbd { margin-left: 2px; padding: 2px 4px; border: 1px solid #e4e6ed; border-radi
 .line-content { padding-right: 20px; overflow-wrap: anywhere; }
 .cited-line { background: #f3f1ff; color: #383f56; box-shadow: inset 3px 0 #786de3; }
 .cited-line .line-number { color: #7569d3; }
+.pdf-source-page { padding: 13px 20px; border-bottom: 1px solid #f0f1f5; }
+.pdf-source-page h3 { margin: 0 0 8px; color: #6e64c9; font: 700 9px Manrope,sans-serif; }
+.pdf-source-page p { margin: 0; color: #586075; font: 10px/1.75 "DM Sans",sans-serif; white-space: pre-wrap; }
+.pdf-source-page.cited-page { background: #f6f4ff; box-shadow: inset 3px 0 #786de3; }
 .dialog-footer { min-height: 52px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #eceef3; background: #fcfcfe; }
 .dialog-trust { color: #538b6e; font-size: 8px; }
 .dialog-trust span { margin-right: 4px; }
