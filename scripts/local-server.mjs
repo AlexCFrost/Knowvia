@@ -2,12 +2,12 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { embedText } from "./src/gemini-embeddings.mjs";
-import { generateGroundedAnswer } from "./src/gemini-answers.mjs";
-import { extractPdfPages } from "./src/pdf-ingestion.mjs";
-import knowledgeHandler from "./api/knowledge.mjs";
+import { embedText } from "../src/gemini-embeddings.mjs";
+import { generateGroundedAnswer } from "../src/gemini-answers.mjs";
+import { extractPdfPages } from "../src/pdf-ingestion.mjs";
+import knowledgeHandler from "../api/knowledge.mjs";
 
-const root = resolve(fileURLToPath(new URL(".", import.meta.url)));
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const port = Number(process.env.PORT || 4173);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
@@ -101,8 +101,7 @@ const server = createServer(async (request, response) => {
   }
 });
 
-const host = process.env.VERCEL ? "0.0.0.0" : "127.0.0.1";
-server.listen(port, host, () => console.log(`Knowvia demo available at http://localhost:${port}`));
+server.listen(port, "127.0.0.1", () => console.log(`Knowvia demo available at http://localhost:${port}`));
 
 async function readJson(request, limit) {
   const parts = [];
