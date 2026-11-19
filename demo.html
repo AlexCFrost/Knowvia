@@ -59,6 +59,10 @@
               <div><div class="section-kicker">SEARCH RESULTS</div><h2>Supporting evidence</h2><p id="result-summary">Search to see supporting passages.</p></div>
               <div class="grounded-badge"><span>✓</span> SOURCE GROUNDED</div>
             </div>
+            <section class="answer-panel" id="answer-panel" aria-labelledby="answer-title" aria-live="polite" hidden>
+              <div class="answer-panel-heading"><h3 id="answer-title">Grounded answer</h3><span class="answer-model">Gemini · evidence only</span></div>
+              <div id="answer-content"></div>
+            </section>
             <div class="result-toolbar" id="result-controls" hidden>
               <div class="result-count"><span class="count-pip"></span><span id="visible-count">Results</span></div>
               <label class="filter-control"><span>Source type</span><select id="source-type-filter" aria-label="Filter results by source type"><option value="all">All types</option></select></label>
@@ -67,7 +71,7 @@
             <div id="evidence-list" class="evidence-list"></div>
           </section>
 
-          <footer class="page-footer"><span class="footer-lock">♢</span><span>This assistant retrieves passages; it does not generate customer replies.</span><button type="button" id="manage-sources-footer">View source library <span>↗</span></button></footer>
+          <footer class="page-footer"><span class="footer-lock">♢</span><span>Answers use approved source passages and include citations.</span><button type="button" id="manage-sources-footer">View source library <span>↗</span></button></footer>
         </div>
       </main>
 
