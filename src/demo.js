@@ -20,10 +20,12 @@ const toast = document.querySelector("#toast");
 let currentResults = [];
 let vectorSearchAvailable = false;
 let embeddingPromise = null;
+let supabaseAvailable = false;
 
 renderSources();
 renderInitialResults();
 embeddingPromise = indexApprovedChunks();
+loadStoredDocuments();
 
 askButton.addEventListener("click", search);
 question.addEventListener("keydown", (event) => {
@@ -81,7 +83,22 @@ async function search() {
         showToast("Semantic search is unavailable. Showing keyword results.");
       }
     }
-    currentResults = retrieveHybrid(query, queryVector, chunks, { limit: 4, minSimilarity: 0.25 });
+    let storedResults = [];
+    if (supabaseAvailable) {
+      try {
+        const stored = await fetch(`/api/knowledge?q=${encodeURIComponent(query)}`);
+        const payload = await stored.json();
+        if (!stored.ok) throw new Error(payload.error || "Saved knowledge search failed");
+        storedResults = payload.results || [];
+      } catch (error) {
+        console.warn("Saved knowledge search unavailable:", error.message);
+        showToast("Saved document search is unavailable; showing this session’s sources.");
+      }
+    }
+    const localResults = retrieveHybrid(query, queryVector, chunks, { limit: 4, minSimilarity: 0.25 });
+    currentResults = [...storedResults, ...localResults]
+      .filter((result, index, all) => all.findIndex((other) => other.documentId === result.documentId && other.startLine === result.startLine && other.pageNumber === result.pageNumber && other.text === result.text) === index)
+      .slice(0, 4);
     sourceTypeFilter.value = "all";
     renderResults();
     resultSummary.textContent += ` · ${retrievalMode}`;
@@ -338,6 +355,11 @@ function approveSource(doc) {
     }
   });
   showToast(`“${doc.title}” is approved for this demo session. You can search it now.`);
+  if (doc.persisted) {
+    fetch("/api/knowledge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "approve", documentId: doc.documentId }) })
+      .then(async (response) => { if (!response.ok) throw new Error((await response.json()).error || "Approval failed"); })
+      .catch((error) => showToast(`Approval could not be saved: ${error.message}`));
+  }
 }
 
 function openCitation(result) {
@@ -350,7 +372,18 @@ function openCitation(result) {
   });
 }
 
-function openSource(doc, range = null) {
+async function openSource(doc, range = null) {
+  if (doc.persisted && !doc.markdown) {
+    try {
+      const response = await fetch(`/api/knowledge?id=${encodeURIComponent(doc.documentId)}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not load source");
+      doc.markdown = payload.documents[0]?.markdown || "";
+    } catch (error) {
+      showToast(`Could not load the saved source: ${error.message}`);
+      return;
+    }
+  }
   document.querySelector("#dialog-title").textContent = doc.title;
   document.querySelector("#dialog-meta").textContent = `${doc.kind} · ${doc.version} · ${doc.approved ? "Approved" : "Pending approval"}`;
   document.querySelector(".dialog-trust").innerHTML = doc.approved ? '<span>✓</span> Approved source' : '<span>◷</span> Awaiting approval';
@@ -442,17 +475,20 @@ async function importMarkdown(event) {
     if (file.size > 2 * 1024 * 1024) throw new Error("Markdown files must be smaller than 2 MB.");
     const markdown = await file.text();
     const title = file.name.replace(/\.markdown?$/i, "").replace(/[-_]+/g, " ");
+    const sourceType = document.querySelector("#markdown-source-type").value;
+    const sourceKinds = { markdown: "Uploaded Markdown", ticket: "Support ticket", wiki: "Technical wiki" };
     const doc = {
       documentId: `upload-${crypto.randomUUID()}`,
       title,
-      version: "session import",
+      version: "1",
       approved: false,
       current: true,
-      kind: "Uploaded Markdown",
+      kind: sourceKinds[sourceType] || "Uploaded Markdown",
       markdown,
     };
     const newChunks = ingestMarkdown(markdown, doc);
     if (!newChunks.length) throw new Error("No readable Markdown passages were found.");
+    await persistDocument(doc, newChunks, sourceType);
     sourceDocs.push(doc);
     chunks.push(...newChunks);
     renderSources();
@@ -493,7 +529,7 @@ async function importPdf(event, file) {
     const doc = {
       documentId: `upload-${crypto.randomUUID()}`,
       title,
-      version: "PDF import",
+      version: "1",
       approved: false,
       current: true,
       kind: "PDF",
@@ -502,6 +538,7 @@ async function importPdf(event, file) {
     };
     const newChunks = ingestPdfPages(payload.pages, doc);
     if (!newChunks.length) throw new Error("No readable text was found in the PDF.");
+    await persistDocument(doc, newChunks, "pdf");
     sourceDocs.push(doc);
     chunks.push(...newChunks);
     renderSources();
@@ -510,6 +547,51 @@ async function importPdf(event, file) {
     showToast(error.message || "Could not read that PDF file.");
   } finally {
     event.target.value = "";
+  }
+}
+
+async function persistDocument(doc, docChunks, sourceType) {
+  try {
+    const response = await fetch("/api/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: doc.title, version: doc.version, sourceType,
+        content: doc.markdown,
+        chunks: docChunks.map((chunk) => ({
+          content: chunk.text, heading: chunk.heading,
+          pageNumber: chunk.pageNumber, startLine: chunk.startLine, endLine: chunk.endLine,
+        })),
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Could not save document");
+    doc.documentId = payload.document.documentId;
+    doc.persisted = true;
+    for (const chunk of docChunks) chunk.documentId = doc.documentId;
+    showToast(`Saved ${payload.chunkCount} passages to the knowledge database. Approve the source before searching.`);
+  } catch (error) {
+    console.warn("Document persistence unavailable:", error.message);
+    showToast(`Added for this session only. Database save failed: ${error.message}`);
+  }
+}
+
+async function loadStoredDocuments() {
+  try {
+    const response = await fetch("/api/knowledge");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Could not load saved documents");
+    supabaseAvailable = true;
+    const known = new Set(sourceDocs.map((doc) => doc.documentId));
+    for (const doc of payload.documents || []) {
+      if (known.has(doc.documentId)) continue;
+      doc.persisted = true;
+      sourceDocs.push(doc);
+    }
+    renderSources();
+  } catch (error) {
+    supabaseAvailable = false;
+    console.info("Persistent document store is not configured:", error.message);
   }
 }
 
