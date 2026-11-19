@@ -1,4 +1,4 @@
-import { ingestMarkdown, retrieveHybrid, retrieveEvidence } from "./knowledge.mjs";
+import { ingestMarkdown, ingestPdfPages, retrieveHybrid, retrieveEvidence } from "./knowledge.mjs";
 import { sourceDocs } from "./sample-documents.mjs";
 
 const chunks = sourceDocs.flatMap((doc) => ingestMarkdown(doc.markdown, doc));
@@ -42,7 +42,7 @@ document.querySelector("#manage-docs").addEventListener("click", openSources);
 document.querySelector("#manage-sources-footer").addEventListener("click", openSources);
 document.querySelector("#close-sources").addEventListener("click", closeSources);
 panelScrim.addEventListener("click", closeSources);
-document.querySelector("#file-upload").addEventListener("change", importMarkdown);
+document.querySelector("#file-upload").addEventListener("change", importFile);
 sourceTypeFilter.addEventListener("change", renderResults);
 document.querySelector("#close-dialog").addEventListener("click", () => sourceDialog.close());
 document.querySelector("#dialog-done").addEventListener("click", () => sourceDialog.close());
@@ -177,7 +177,10 @@ function renderEvidence(result, index) {
   const citationLink = document.createElement("button");
   citationLink.className = "citation-link";
   citationLink.type = "button";
-  citationLink.innerHTML = `<span>${result.startLine === result.endLine ? `Line ${result.startLine}` : `Lines ${result.startLine}–${result.endLine}`}</span><span aria-hidden="true">↗</span>`;
+  const citationLocation = result.pageNumber ? `Page ${result.pageNumber}`
+    : result.startLine === result.endLine ? `Line ${result.startLine}`
+      : `Lines ${result.startLine}–${result.endLine}`;
+  citationLink.innerHTML = `<span>${citationLocation}</span><span aria-hidden="true">↗</span>`;
   citationLink.addEventListener("click", () => openCitation(result));
   footer.append(citationInfo, citationLink);
 
@@ -273,7 +276,7 @@ function renderSources() {
     top.className = "source-item-top";
     const icon = document.createElement("span");
     icon.className = "file-icon";
-    icon.textContent = doc.kind === "Archived guide" ? "◷" : "▤";
+    icon.textContent = doc.kind === "Archived guide" ? "◷" : doc.kind === "PDF" ? "▧" : "▤";
     const details = document.createElement("span");
     details.className = "source-details";
     const name = document.createElement("strong");
@@ -340,6 +343,7 @@ function approveSource(doc) {
 function openCitation(result) {
   const doc = sourceDocs.find((source) => source.documentId === result.documentId);
   if (doc) openSource(doc, {
+    pageNumber: result.pageNumber,
     startLine: result.startLine,
     endLine: result.endLine,
     matchedTerms: result.matchedQueryTerms,
@@ -352,10 +356,31 @@ function openSource(doc, range = null) {
   document.querySelector(".dialog-trust").innerHTML = doc.approved ? '<span>✓</span> Approved source' : '<span>◷</span> Awaiting approval';
   const callout = document.querySelector("#citation-callout");
   callout.hidden = !range;
-  if (range) callout.querySelector("p").textContent = `Showing cited passage · ${range.startLine === range.endLine ? `line ${range.startLine}` : `lines ${range.startLine}–${range.endLine}`}`;
+  if (range) {
+    const location = range.pageNumber ? `page ${range.pageNumber}`
+      : range.startLine === range.endLine ? `line ${range.startLine}`
+        : `lines ${range.startLine}–${range.endLine}`;
+    callout.querySelector("p").textContent = `Showing cited passage · ${location}`;
+  }
 
   const documentText = document.querySelector("#document-text");
   documentText.replaceChildren();
+  if (Array.isArray(doc.pages)) {
+    for (const page of doc.pages) {
+      const section = document.createElement("section");
+      section.className = `pdf-source-page${range?.pageNumber === page.pageNumber ? " cited-page" : ""}`;
+      section.dataset.pageNumber = String(page.pageNumber);
+      const heading = document.createElement("h3");
+      heading.textContent = `Page ${page.pageNumber}`;
+      const content = document.createElement("p");
+      appendHighlightedText(content, page.text || "No selectable text on this page.", range?.pageNumber === page.pageNumber ? range.matchedTerms ?? [] : []);
+      section.append(heading, content);
+      documentText.append(section);
+    }
+    sourceDialog.showModal();
+    documentText.querySelector(".cited-page")?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
   doc.markdown.split(/\r?\n/).forEach((line, index) => {
     const lineNumber = index + 1;
     const row = document.createElement("span");
@@ -434,6 +459,55 @@ async function importMarkdown(event) {
     showToast(`Added “${title}”. Approve it from the source library before searching.`);
   } catch (error) {
     showToast(error.message || "Could not read that Markdown file.");
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function importFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (/\.pdf$/i.test(file.name)) return importPdf(event, file);
+  if (/\.(?:md|markdown)$/i.test(file.name)) return importMarkdown(event);
+  event.target.value = "";
+  showToast("Choose a .pdf, .md, or .markdown file.");
+}
+
+async function importPdf(event, file) {
+  try {
+    if (file.size > 2 * 1024 * 1024) throw new Error("PDF files must be smaller than 2 MB.");
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 32 * 1024) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 32 * 1024));
+    }
+    const response = await fetch("/api/ingest-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pdfBase64: btoa(binary) }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `PDF service returned ${response.status}`);
+
+    const title = file.name.replace(/\.pdf$/i, "").replace(/[-_]+/g, " ");
+    const doc = {
+      documentId: `upload-${crypto.randomUUID()}`,
+      title,
+      version: "PDF import",
+      approved: false,
+      current: true,
+      kind: "PDF",
+      pages: payload.pages,
+      markdown: payload.pages.map((page) => `# Page ${page.pageNumber}\n\n${page.text}`).join("\n\n"),
+    };
+    const newChunks = ingestPdfPages(payload.pages, doc);
+    if (!newChunks.length) throw new Error("No readable text was found in the PDF.");
+    sourceDocs.push(doc);
+    chunks.push(...newChunks);
+    renderSources();
+    showToast(`Added “${title}”. Approve it before searching; citations will show PDF page numbers.`);
+  } catch (error) {
+    showToast(error.message || "Could not read that PDF file.");
   } finally {
     event.target.value = "";
   }

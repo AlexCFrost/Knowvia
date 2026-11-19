@@ -35,7 +35,7 @@
           <section class="welcome" aria-labelledby="page-title">
             <div class="eyebrow"><span class="eyebrow-star">✳</span> SUPPORT KNOWLEDGE</div>
             <h1 id="page-title">Find the answer.<br /><span>Show the evidence.</span></h1>
-            <p class="welcome-copy">Try a sample question or upload your own Markdown support note to search it in this session.</p>
+            <p class="welcome-copy">Try a sample question or upload a PDF or Markdown support note to search it in this session.</p>
           </section>
 
           <section class="search-card" aria-label="Search support knowledge">
@@ -81,10 +81,11 @@
         <div class="library-summary"><span class="library-icon">▤</span><div><strong id="current-source-count">2 current sources</strong><small><span class="status-dot"></span> Ready to search</small></div></div>
         <div class="source-list-heading"><span>YOUR DOCUMENTS</span><span id="library-total">03</span></div>
         <div id="source-list" class="source-list"></div>
-        <label class="upload-button" for="file-upload"><span>＋</span> Add Markdown file</label>
-        <input id="file-upload" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden />
-        <p class="upload-caption">Markdown files stay in this browser session. New uploads need approval before search.</p>
+        <label class="upload-button" for="file-upload"><span>＋</span> Add PDF or Markdown</label>
+        <input id="file-upload" type="file" accept=".pdf,application/pdf,.md,.markdown,text/markdown,text/plain" hidden />
+        <p class="upload-caption">Documents stay in this browser session. PDFs are limited to 2 MB and 100 pages; scanned PDFs need OCR. New uploads need approval before search.</p>
         <a class="sample-download" href="examples/api-key-support.md" download><span>↓</span> Download a sample document</a>
+        <a class="sample-download" href="examples/mfa-and-sso-support.pdf" download><span>↓</span> Download a sample PDF</a>
         <div class="panel-note"><span class="panel-note-check">✓</span><div><strong>Source controls enabled</strong><p>Outdated and unapproved documents stay out of search.</p></div></div>
         <div class="panel-footer">SOURCE STATUS <span><i></i> All systems ready</span></div>
       </aside>

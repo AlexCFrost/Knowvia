@@ -4,17 +4,35 @@ import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { embedText } from "./src/gemini-embeddings.mjs";
 import { generateGroundedAnswer } from "./src/gemini-answers.mjs";
+import { extractPdfPages } from "./src/pdf-ingestion.mjs";
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const port = Number(process.env.PORT || 4173);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
-  ".md": "text/markdown; charset=utf-8", ".json": "application/json; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8", ".json": "application/json; charset=utf-8", ".pdf": "application/pdf",
 };
 
 const server = createServer(async (request, response) => {
   response.setHeader("X-Content-Type-Options", "nosniff");
+  if (request.method === "POST" && request.url === "/api/ingest-pdf") {
+    try {
+      const body = await readJson(request, 4 * 1024 * 1024);
+      if (typeof body.pdfBase64 !== "string" || body.pdfBase64.length > 2_800_000) {
+        throw new Error("Provide a PDF smaller than 2 MB");
+      }
+      const bytes = Buffer.from(body.pdfBase64, "base64");
+      if (bytes.toString("base64") !== body.pdfBase64) throw new Error("The PDF data is not valid base64");
+      const pages = await extractPdfPages(bytes);
+      sendJson(response, 200, { pages });
+    } catch (error) {
+      const status = error instanceof RangeError || error instanceof TypeError ? 400 : 422;
+      sendJson(response, status, { error: error.message || "Could not extract PDF text" });
+    }
+    return;
+  }
+
   if (request.method === "POST" && request.url === "/api/answers") {
     try {
       const body = await readJson(request, 64 * 1024);

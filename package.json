@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "pdfjs-dist": "6.5.438"
+  },
+  "name": "knowvia-support-assistant",
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
