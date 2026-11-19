@@ -101,7 +101,8 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => console.log(`Knowvia demo available at http://localhost:${port}`));
+const host = process.env.VERCEL ? "0.0.0.0" : "127.0.0.1";
+server.listen(port, host, () => console.log(`Knowvia demo available at http://localhost:${port}`));
 
 async function readJson(request, limit) {
   const parts = [];
