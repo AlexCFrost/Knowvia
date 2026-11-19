@@ -15,13 +15,19 @@ The assistant answers support questions from approved documentation and tickets,
 
 ## Technical implementation
 
-`src/knowledge.mjs` implements a dependency-free Markdown ingestion and lexical retrieval core. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. Retrieval filters out documents unless both `approved` and `current` are true.
+`src/knowledge.mjs` implements dependency-free Markdown ingestion and retrieval. It preserves section headings and source line ranges, splits long passages with overlap, and returns citation metadata with ranked evidence. `retrieveEvidence` provides lexical search. `retrieveByEmbedding` ranks pre-embedded chunks with cosine similarity, supports a minimum similarity threshold, and applies the approved/current source filter. `retrieveHybrid` merges keyword and semantic rankings with weighted reciprocal rank fusion (RRF), retains citation metadata, and falls back to keyword results when no query embedding is available.
 
-This is the deterministic baseline for the RAG pipeline. Retrieval gives extra weight to query terms found in a passage heading, while preserving body-text matching and current/approved filtering. Embeddings, PostgreSQL/pgvector persistence, PDF parsing, and model-based answer verification remain subsequent integration work.
+This is the retrieval foundation for the RAG pipeline. `src/gemini-embeddings.mjs` connects it to Google's `gemini-embedding-2` embedding endpoint, and `server.mjs` keeps the API key on the server. The browser demo combines keyword and cosine-similarity rankings for each question; if the embedding service is unavailable, it shows keyword results. PDF parsing, persistent vector storage, and model-based answer verification remain subsequent integration work.
+
+Run the retrieval checks with `node --test src/knowledge.test.mjs`.
+
+Run the local retrieval evaluation with `node src/evaluate-retrieval.mjs`. It reports hit rate at 3, mean reciprocal rank, unsupported-question abstention, citation line validity, active-source filtering, and retrieval time against the demo's shared sample documents. The evaluation stays local and does not send the document corpus to an external model.
 
 ## Browser demo
 
-Run `python3 -m http.server 4173` from the project directory and open `http://localhost:4173/demo.html`. The interface opens with a sample MFA search. Try the SSO suggestion for another supported query or the audit-log suggestion to demonstrate abstention when no evidence is available. Matched query terms are highlighted in each passage. Select a citation to open the original document and highlight the cited lines and matching terms. To demonstrate ingestion, download the sample API key policy from the source panel or upload another Markdown file. New uploads are session-only and excluded from retrieval until approved with “Approve for this demo”; after approval, search for API key rotation or the topic in your uploaded note. Search is lexical and returns supporting passages; it does not generate an answer.
+Copy `.env.example` to `.env.local`, put a fresh `GEMINI_API_KEY` in `.env.local`, and start the app with `node --env-file=.env.local server.mjs`. Open `http://localhost:4173`. The API key stays server-side. Without a key, the demo falls back to lexical search. Confirm Google AI Studio shows the project on its Free tier before using a key; a paid-tier project can incur charges. Do not commit `.env.local`.
+
+The interface opens with a sample MFA search. Try the SSO suggestion for another supported query or the audit-log suggestion to demonstrate abstention when no evidence is available. Select a citation to open the original document and highlight the cited lines. To demonstrate ingestion, upload another Markdown file; new uploads are session-only and excluded from retrieval until approved with “Approve for this demo.” Search for a topic in the uploaded note after approval. Search retrieves supporting passages; it does not generate an answer.
 
 ## Initial product architecture
 

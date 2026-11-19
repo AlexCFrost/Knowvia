@@ -134,6 +134,118 @@ export function retrieveEvidence(query, chunks, limit = 5) {
     .slice(0, limit);
 }
 
+/**
+ * Return citation-ready evidence ranked by cosine similarity against stored
+ * chunk embeddings. The caller supplies embeddings; this function does not
+ * choose or call a model provider.
+ */
+export function retrieveByEmbedding(queryEmbedding, chunks, limit = 5, minSimilarity = 0) {
+  if (!Array.isArray(chunks)) throw new TypeError("chunks must be an array");
+  if (!Number.isInteger(limit) || limit < 1) throw new RangeError("limit must be positive");
+  if (!Number.isFinite(minSimilarity) || minSimilarity < -1 || minSimilarity > 1) {
+    throw new RangeError("minSimilarity must be between -1 and 1");
+  }
+
+  const query = normalizeEmbedding(queryEmbedding, "query embedding");
+  const queryMagnitude = Math.sqrt(query.reduce((sum, value) => sum + value * value, 0));
+  if (queryMagnitude === 0) throw new RangeError("query embedding must not be a zero vector");
+
+  const eligible = chunks.filter((chunk) => chunk.approved && chunk.current && chunk.text && chunk.embedding != null);
+  return eligible
+    .map((chunk) => {
+      const embedding = normalizeEmbedding(chunk.embedding, `embedding for ${chunk.id ?? chunk.documentId ?? "chunk"}`);
+      if (embedding.length !== query.length) {
+        throw new RangeError(`embedding dimensions do not match for ${chunk.id ?? chunk.documentId ?? "chunk"}`);
+      }
+
+      const dotProduct = query.reduce((sum, value, index) => sum + value * embedding[index], 0);
+      const magnitude = Math.sqrt(embedding.reduce((sum, value) => sum + value * value, 0));
+      if (magnitude === 0) throw new RangeError(`embedding for ${chunk.id ?? chunk.documentId ?? "chunk"} must not be a zero vector`);
+      const rawSimilarity = dotProduct / (queryMagnitude * magnitude);
+      const similarity = Math.max(-1, Math.min(1, rawSimilarity));
+      return {
+        ...chunk,
+        score: similarity,
+        similarity,
+        citation: {
+          documentId: chunk.documentId,
+          title: chunk.title,
+          version: chunk.version,
+          heading: chunk.heading,
+          startLine: chunk.startLine,
+          endLine: chunk.endLine,
+        },
+      };
+    })
+    .filter((result) => result.similarity >= minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity || String(a.id).localeCompare(String(b.id)))
+    .slice(0, limit);
+}
+
+/**
+ * Merge lexical and vector rankings with weighted reciprocal rank fusion.
+ * Results keep the citation data from either retrieval path and expose each
+ * source rank for inspection. A missing query embedding gives keyword-only
+ * results, which keeps search available if the embedding service is down.
+ */
+export function retrieveHybrid(query, queryEmbedding, chunks, options = {}) {
+  if (!Array.isArray(chunks)) throw new TypeError("chunks must be an array");
+  const {
+    limit = 5,
+    minSimilarity = 0.25,
+    rrfK = 60,
+    keywordWeight = 1,
+    semanticWeight = 1,
+  } = options;
+  if (!Number.isInteger(limit) || limit < 1) throw new RangeError("limit must be positive");
+  if (!Number.isFinite(rrfK) || rrfK <= 0) throw new RangeError("rrfK must be positive");
+  if (!Number.isFinite(keywordWeight) || keywordWeight < 0) throw new RangeError("keywordWeight must be non-negative");
+  if (!Number.isFinite(semanticWeight) || semanticWeight < 0) throw new RangeError("semanticWeight must be non-negative");
+  if (keywordWeight + semanticWeight === 0) throw new RangeError("at least one retrieval weight must be positive");
+
+  const candidateLimit = Math.max(1, chunks.length);
+  const keywordResults = keywordWeight > 0 ? retrieveEvidence(query, chunks, candidateLimit) : [];
+  const semanticResults = queryEmbedding == null
+    ? []
+    : semanticWeight > 0 ? retrieveByEmbedding(queryEmbedding, chunks, candidateLimit, minSimilarity) : [];
+  const fused = new Map();
+
+  const addRankedResults = (results, rankName, weight) => {
+    results.forEach((result, index) => {
+      const rank = index + 1;
+      const existing = fused.get(result.id) ?? { ...result, keywordRank: null, semanticRank: null, score: 0 };
+      existing[rankName] = rank;
+      existing.score += weight / (rrfK + rank);
+      if (rankName === "keywordRank") {
+        existing.lexicalScore = result.score;
+        existing.matchedTerms = result.matchedTerms;
+        existing.matchedQueryTerms = result.matchedQueryTerms;
+      } else {
+        existing.similarity = result.similarity;
+      }
+      fused.set(result.id, existing);
+    });
+  };
+
+  addRankedResults(keywordResults, "keywordRank", keywordWeight);
+  addRankedResults(semanticResults, "semanticRank", semanticWeight);
+  return [...fused.values()]
+    .sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)))
+    .slice(0, limit);
+}
+
+function normalizeEmbedding(embedding, label) {
+  const isTypedNumericArray = ArrayBuffer.isView(embedding) && !(embedding instanceof DataView);
+  if ((!Array.isArray(embedding) && !isTypedNumericArray) || embedding.length === 0) {
+    throw new TypeError(`${label} must be a non-empty numeric array`);
+  }
+  const values = Array.from(embedding);
+  if (values.some((value) => typeof value !== "number" || !Number.isFinite(value))) {
+    throw new TypeError(`${label} must contain only finite numbers`);
+  }
+  return values;
+}
+
 function splitWithOverlap(text, maxChars, overlap) {
   if (text.length <= maxChars) return [{ text, start: 0, end: text.length }];
   const pieces = [];

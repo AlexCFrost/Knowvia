@@ -1,0 +1,38 @@
+export const sourceDocs = [
+  {
+    documentId: "identity-guide",
+    title: "Identity & Access Administration",
+    version: "v2.4",
+    approved: true,
+    current: true,
+    kind: "Support guide",
+    markdown: `# Identity & Access Administration\n\n## Reset a user's MFA device\n\nAn organization administrator can reset a user's multi-factor authentication (MFA) device from the Admin Console. Open Users, select the user, choose Security, then select Reset MFA. The user will be prompted to enroll a new device at their next sign-in.\n\nBefore resetting MFA, verify the requester's identity using your organization's support verification procedure. Record the reset in the account's audit history.\n\n## Account recovery\n\nIf the user cannot access their registered email, confirm account ownership with two approved verification factors before changing sign-in details.`,
+  },
+  {
+    documentId: "sso-troubleshooting",
+    title: "SAML SSO Troubleshooting",
+    version: "v1.8",
+    approved: true,
+    current: true,
+    kind: "Troubleshooting guide",
+    markdown: `# SAML SSO Troubleshooting\n\n## Login failures\n\nIf SSO login fails, confirm that the identity provider's Entity ID and Single Sign-On URL match the values in the Admin Console. Check that the signing certificate has not expired and that the user's email address matches the NameID attribute.\n\nAfter correcting an identity provider setting, allow up to five minutes for configuration changes to propagate before testing again.\n\n## Reviewing a SAML response\n\nUse the SSO diagnostics page to inspect the latest sign-in attempt. Do not share SAML responses because they may contain sensitive identity information.`,
+  },
+  {
+    documentId: "mfa-recovery-ticket",
+    title: "MFA Device Recovery · Case 1042",
+    version: "Resolved",
+    approved: true,
+    current: true,
+    kind: "Support ticket",
+    markdown: `# MFA Device Recovery\n\n## Replace a lost authenticator\n\nWhen a user loses access to a registered MFA device, verify the requester's identity using the support verification procedure. An organization administrator can reset the user's MFA from Admin Console → Users → select the user → Security → Reset MFA. At the next sign-in, the user enrolls a replacement device. Do not use the retired legacy portal procedure.`,
+  },
+  {
+    documentId: "legacy-login-guide",
+    title: "Legacy Login Setup",
+    version: "v0.9",
+    approved: true,
+    current: false,
+    kind: "Archived guide",
+    markdown: `# Legacy Login Setup\n\n## Reset a user's MFA device\n\nContact the account owner and manually clear MFA from the legacy portal. This procedure has been retired and must not be used.`,
+  },
+];
