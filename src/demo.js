@@ -64,7 +64,7 @@ async function search() {
   askButton.querySelector("span:first-child").textContent = "Searching…";
   try {
     await documentsReady;
-    if (!supabaseAvailable) throw new Error("The knowledge database is unavailable. Check the server configuration and try again.");
+    if (!supabaseAvailable) await loadStoredDocuments();
     const response = await fetch(`/api/knowledge?q=${encodeURIComponent(query)}`);
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `Search service returned ${response.status}`);
