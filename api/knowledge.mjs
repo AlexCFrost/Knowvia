@@ -118,7 +118,7 @@ async function search(question) {
     citation: { documentId: item.documentId, title: item.title, version: item.version, heading: item.heading,
       ...(item.pageNumber == null ? {} : { pageNumber: item.pageNumber }), startLine: item.startLine, endLine: item.endLine },
   }));
-  return { results };
+  return { results, retrievalMode: semantic.length ? "Hybrid retrieval" : "Keyword retrieval" };
 }
 
 function sourceKind(type) { return ({ markdown: "Uploaded Markdown", pdf: "PDF", ticket: "Support ticket", wiki: "Technical wiki" })[type] || "Document"; }
