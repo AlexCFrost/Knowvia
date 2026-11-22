@@ -1,7 +1,6 @@
-import { ingestMarkdown, ingestPdfPages, retrieveHybrid, retrieveEvidence } from "./knowledge.mjs";
-import { sourceDocs } from "./sample-documents.mjs";
+import { ingestMarkdown, ingestPdfPages } from "./knowledge.mjs";
 
-const chunks = sourceDocs.flatMap((doc) => ingestMarkdown(doc.markdown, doc));
+const sourceDocs = [];
 const question = document.querySelector("#question");
 const askButton = document.querySelector("#ask");
 const resultsRegion = document.querySelector("#results");
@@ -18,12 +17,12 @@ const panelScrim = document.querySelector("#panel-scrim");
 const sourceDialog = document.querySelector("#source-dialog");
 const toast = document.querySelector("#toast");
 let currentResults = [];
-let vectorSearchAvailable = false;
-let embeddingPromise = null;
+let supabaseAvailable = false;
+let retrievalMode = "";
 
 renderSources();
-renderInitialResults();
-embeddingPromise = indexApprovedChunks();
+setConnectionStatus("Connecting to the knowledge base…", "loading");
+const documentsReady = loadStoredDocuments();
 
 askButton.addEventListener("click", search);
 question.addEventListener("keydown", (event) => {
@@ -42,18 +41,13 @@ document.querySelector("#manage-docs").addEventListener("click", openSources);
 document.querySelector("#manage-sources-footer").addEventListener("click", openSources);
 document.querySelector("#close-sources").addEventListener("click", closeSources);
 panelScrim.addEventListener("click", closeSources);
-document.querySelector("#file-upload").addEventListener("change", importFile);
+document.querySelector("#file-upload").addEventListener("change", handleFileUpload);
 sourceTypeFilter.addEventListener("change", renderResults);
 document.querySelector("#close-dialog").addEventListener("click", () => sourceDialog.close());
 document.querySelector("#dialog-done").addEventListener("click", () => sourceDialog.close());
 sourceDialog.addEventListener("click", (event) => {
   if (event.target === sourceDialog) sourceDialog.close();
 });
-
-function renderInitialResults() {
-  currentResults = retrieveEvidence(question.value, chunks, 4);
-  renderResults();
-}
 
 async function search() {
   const query = question.value.trim();
@@ -65,36 +59,35 @@ async function search() {
 
   resultsRegion.setAttribute("aria-busy", "true");
   answerPanel.hidden = false;
-  answerContent.textContent = "Checking the retrieved passages…";
+  answerContent.textContent = "Searching approved documents…";
   askButton.disabled = true;
   askButton.querySelector("span:first-child").textContent = "Searching…";
   try {
-    await embeddingPromise;
-    let queryVector = null;
-    let retrievalMode = "Keyword search";
-    if (vectorSearchAvailable) {
-      try {
-        queryVector = (await requestEmbeddings([{ text: query, purpose: "query" }]))[0];
-        retrievalMode = "Hybrid search (keyword + semantic)";
-      } catch {
-        retrievalMode = "Keyword fallback (semantic unavailable)";
-        showToast("Semantic search is unavailable. Showing keyword results.");
-      }
-    }
-    currentResults = retrieveHybrid(query, queryVector, chunks, { limit: 4, minSimilarity: 0.25 });
-    sourceTypeFilter.value = "all";
+    await documentsReady;
+    if (!supabaseAvailable) await loadStoredDocuments();
+    const response = await fetch(`/api/knowledge?q=${encodeURIComponent(query)}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Search service returned ${response.status}`);
+    currentResults = payload.results || [];
+    retrievalMode = payload.retrievalMode || "";
     renderResults();
-    resultSummary.textContent += ` · ${retrievalMode}`;
     if (!currentResults.length) {
       renderAnswer({ abstained: true, answer: "I don't have enough evidence in the approved, current documents to answer that.", claims: [] });
     } else {
       try {
         renderAnswer(await requestAnswer(query, currentResults));
-      } catch {
-        renderAnswerError();
+      } catch (error) {
+        renderAnswerError(error);
       }
     }
   } catch (error) {
+    currentResults = [];
+    renderResults();
+    answerContent.replaceChildren();
+    const message = document.createElement("p");
+    message.className = "answer-error";
+    message.textContent = error.message || "Search is unavailable. Please try again.";
+    answerContent.append(message);
     showToast(error.message || "Semantic search failed.");
   } finally {
     askButton.disabled = false;
@@ -117,7 +110,7 @@ function renderResults() {
   }
 
   const total = currentResults.length;
-  resultSummary.textContent = `${total} relevant ${total === 1 ? "passage" : "passages"} from approved, current sources`;
+  resultSummary.textContent = `${total} relevant ${total === 1 ? "passage" : "passages"} from approved, current sources${retrievalMode ? ` · ${retrievalMode}` : ""}`;
   visibleCount.textContent = `${results.length} shown`;
   if (!results.length) {
     evidenceList.append(emptyState("No passages match this source type", "Choose a different source type to see other supporting evidence."));
@@ -215,8 +208,7 @@ function renderAnswer(answer) {
           : `Lines ${citation.startLine}–${citation.endLine}`;
       link.textContent = `${citation.title} · ${citation.version} · ${location}`;
       link.addEventListener("click", () => {
-        const source = sourceDocs.find((doc) => doc.documentId === citation.documentId);
-        if (source) openSource(source, citation);
+        openCitation({ ...citation, documentId: citation.documentId });
       });
       citations.append(link);
     }
@@ -225,12 +217,12 @@ function renderAnswer(answer) {
   }
 }
 
-function renderAnswerError() {
+function renderAnswerError(error) {
   answerPanel.hidden = false;
   answerContent.replaceChildren();
   const message = document.createElement("p");
   message.className = "answer-error";
-  message.textContent = "I couldn't generate an answer right now. The retrieved passages are shown below.";
+  message.textContent = `I couldn't generate an answer right now. ${error?.message || "The retrieved passages are shown below."}`;
   answerContent.append(message);
 }
 
@@ -298,13 +290,19 @@ function renderSources() {
       const approveButton = document.createElement("button");
       approveButton.className = "approve-source-button";
       approveButton.type = "button";
-      approveButton.textContent = "Approve for this demo";
-      approveButton.addEventListener("click", () => approveSource(doc));
+      approveButton.textContent = "Approve source";
+      approveButton.addEventListener("click", () => { void approveSource(doc); });
       entry.append(approveButton);
     }
     list.append(entry);
   }
 
+  if (!sourceDocs.length) {
+    const empty = document.createElement("div");
+    empty.className = "library-empty";
+    empty.textContent = supabaseAvailable ? "No documents yet. Add a Markdown or PDF source to get started." : "Waiting for the knowledge database…";
+    list.append(empty);
+  }
   const activeCount = sourceDocs.filter((doc) => doc.approved && doc.current).length;
   const pendingCount = sourceDocs.filter((doc) => !doc.approved && doc.current).length;
   document.querySelector("#source-count").textContent = String(sourceDocs.length);
@@ -324,20 +322,17 @@ function statusTag(text, active) {
   return element;
 }
 
-function approveSource(doc) {
-  doc.approved = true;
-  for (const chunk of chunks) {
-    if (chunk.documentId === doc.documentId) chunk.approved = true;
+async function approveSource(doc) {
+  try {
+    const response = await fetch("/api/knowledge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "approve", documentId: doc.documentId }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Approval could not be saved");
+    Object.assign(doc, payload.document);
+    renderSources();
+    showToast(`“${doc.title}” is approved and ready to search.`);
+  } catch (error) {
+    showToast(error.message || "Approval could not be saved.");
   }
-  renderSources();
-  const docChunks = chunks.filter((chunk) => chunk.documentId === doc.documentId);
-  embeddingPromise = embeddingPromise.then(async () => {
-    if (vectorSearchAvailable) {
-      const vectors = await requestEmbeddings(docChunks.map((chunk) => ({ text: chunk.text, title: doc.title, purpose: "document" })));
-      docChunks.forEach((chunk, index) => { chunk.embedding = vectors[index]; });
-    }
-  });
-  showToast(`“${doc.title}” is approved for this demo session. You can search it now.`);
 }
 
 function openCitation(result) {
@@ -350,7 +345,18 @@ function openCitation(result) {
   });
 }
 
-function openSource(doc, range = null) {
+async function openSource(doc, range = null) {
+  if (doc.persisted && !doc.markdown) {
+    try {
+      const response = await fetch(`/api/knowledge?id=${encodeURIComponent(doc.documentId)}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not load source");
+      doc.markdown = payload.documents[0]?.markdown || "";
+    } catch (error) {
+      showToast(`Could not load the saved source: ${error.message}`);
+      return;
+    }
+  }
   document.querySelector("#dialog-title").textContent = doc.title;
   document.querySelector("#dialog-meta").textContent = `${doc.kind} · ${doc.version} · ${doc.approved ? "Approved" : "Pending approval"}`;
   document.querySelector(".dialog-trust").innerHTML = doc.approved ? '<span>✓</span> Approved source' : '<span>◷</span> Awaiting approval';
@@ -442,19 +448,21 @@ async function importMarkdown(event) {
     if (file.size > 2 * 1024 * 1024) throw new Error("Markdown files must be smaller than 2 MB.");
     const markdown = await file.text();
     const title = file.name.replace(/\.markdown?$/i, "").replace(/[-_]+/g, " ");
+    const sourceType = document.querySelector("#markdown-source-type").value;
+    const sourceKinds = { markdown: "Uploaded Markdown", ticket: "Support ticket", wiki: "Technical wiki" };
     const doc = {
       documentId: `upload-${crypto.randomUUID()}`,
       title,
-      version: "session import",
+      version: "1",
       approved: false,
       current: true,
-      kind: "Uploaded Markdown",
+      kind: sourceKinds[sourceType] || "Uploaded Markdown",
       markdown,
     };
     const newChunks = ingestMarkdown(markdown, doc);
     if (!newChunks.length) throw new Error("No readable Markdown passages were found.");
+    await persistDocument(doc, newChunks, sourceType);
     sourceDocs.push(doc);
-    chunks.push(...newChunks);
     renderSources();
     showToast(`Added “${title}”. Approve it from the source library before searching.`);
   } catch (error) {
@@ -464,13 +472,18 @@ async function importMarkdown(event) {
   }
 }
 
-function importFile(event) {
+async function handleFileUpload(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  if (/\.pdf$/i.test(file.name)) return importPdf(event, file);
-  if (/\.(?:md|markdown)$/i.test(file.name)) return importMarkdown(event);
-  event.target.value = "";
-  showToast("Choose a .pdf, .md, or .markdown file.");
+  setUploadBusy(true);
+  try {
+    if (/\.pdf$/i.test(file.name)) await importPdf(event, file);
+    else if (/\.(?:md|markdown)$/i.test(file.name)) await importMarkdown(event);
+    else showToast("Choose a .pdf, .md, or .markdown file.");
+  } finally {
+    event.target.value = "";
+    setUploadBusy(false);
+  }
 }
 
 async function importPdf(event, file) {
@@ -493,7 +506,7 @@ async function importPdf(event, file) {
     const doc = {
       documentId: `upload-${crypto.randomUUID()}`,
       title,
-      version: "PDF import",
+      version: "1",
       approved: false,
       current: true,
       kind: "PDF",
@@ -502,8 +515,8 @@ async function importPdf(event, file) {
     };
     const newChunks = ingestPdfPages(payload.pages, doc);
     if (!newChunks.length) throw new Error("No readable text was found in the PDF.");
+    await persistDocument(doc, newChunks, "pdf");
     sourceDocs.push(doc);
-    chunks.push(...newChunks);
     renderSources();
     showToast(`Added “${title}”. Approve it before searching; citations will show PDF page numbers.`);
   } catch (error) {
@@ -513,31 +526,67 @@ async function importPdf(event, file) {
   }
 }
 
-async function indexApprovedChunks() {
+async function persistDocument(doc, docChunks, sourceType) {
+  if (docChunks.length > 200) throw new Error("This document creates more than 200 passages. Split it into smaller files and upload them separately.");
+  const response = await fetch("/api/knowledge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: doc.title, version: doc.version, sourceType,
+      content: doc.markdown,
+      chunks: docChunks.map((chunk) => ({
+        content: chunk.text, heading: chunk.heading,
+        pageNumber: chunk.pageNumber, startLine: chunk.startLine, endLine: chunk.endLine,
+      })),
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Could not save document");
+  if (!payload.document?.documentId) throw new Error("The database did not confirm that the document was saved");
+  doc.documentId = payload.document.documentId;
+  doc.persisted = true;
+  Object.assign(doc, payload.document);
+  showToast(`Saved ${payload.chunkCount} passages. Approve the source before searching.`);
+}
+
+function setUploadBusy(busy) {
+  const input = document.querySelector("#file-upload");
+  const button = document.querySelector(".upload-button");
+  input.disabled = busy;
+  button.setAttribute("aria-disabled", String(busy));
+  button.classList.toggle("is-busy", busy);
+  button.replaceChildren();
+  const icon = document.createElement("span");
+  icon.textContent = busy ? "◌" : "＋";
+  button.append(icon, document.createTextNode(busy ? " Saving to knowledge base…" : " Add a source"));
+}
+
+async function loadStoredDocuments() {
   try {
-    const approvedChunks = chunks.filter((chunk) => chunk.approved && chunk.current);
-    const vectors = await requestEmbeddings(approvedChunks.map((chunk) => ({
-      text: chunk.text,
-      title: chunk.title,
-      purpose: "document",
-    })));
-    approvedChunks.forEach((chunk, index) => { chunk.embedding = vectors[index]; });
-    vectorSearchAvailable = true;
+    const response = await fetch("/api/knowledge");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Could not load saved documents");
+    supabaseAvailable = true;
+    sourceDocs.splice(0, sourceDocs.length, ...(payload.documents || []).map((doc) => ({ ...doc, persisted: true })));
+    renderSources();
+    setConnectionStatus("Knowledge base connected", "ready");
   } catch (error) {
-    vectorSearchAvailable = false;
-    if (!/GEMINI_API_KEY is not configured/.test(error.message)) console.warn("Semantic indexing unavailable:", error.message);
+    supabaseAvailable = false;
+    renderSources();
+    setConnectionStatus("Knowledge base unavailable", "error");
+    showToast(`Could not connect to the knowledge database: ${error.message}`);
   }
 }
 
-async function requestEmbeddings(items) {
-  const response = await fetch("/api/embeddings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `Embedding service returned ${response.status}`);
-  return payload.embeddings;
+function setConnectionStatus(message, state) {
+  const status = document.querySelector(".sync-status");
+  status.dataset.state = state;
+  status.querySelector("span:last-of-type").textContent = message;
+  const footerStatus = document.querySelector(".panel-footer span");
+  footerStatus.dataset.state = state;
+  footerStatus.replaceChildren();
+  const indicator = document.createElement("i");
+  footerStatus.append(indicator, document.createTextNode(state === "ready" ? " Connected" : state === "error" ? " Connection failed" : " Connecting"));
 }
 
 function emptyState(title, description) {

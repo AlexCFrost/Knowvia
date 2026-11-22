@@ -35,12 +35,12 @@
           <section class="welcome" aria-labelledby="page-title">
             <div class="eyebrow"><span class="eyebrow-star">✳</span> SUPPORT KNOWLEDGE</div>
             <h1 id="page-title">Find the answer.<br /><span>Show the evidence.</span></h1>
-            <p class="welcome-copy">Try a sample question or upload a PDF or Markdown support note to search it in this session.</p>
+            <p class="welcome-copy">Search the documents in your knowledge base, or add a PDF or Markdown source.</p>
           </section>
 
           <section class="search-card" aria-label="Search support knowledge">
             <label for="question">WHAT DO YOU NEED HELP WITH?</label>
-            <textarea id="question" rows="2" placeholder="Ask a question about your product…">How can I reset a user's MFA device?</textarea>
+            <textarea id="question" rows="2" placeholder="Ask a question about your product…"></textarea>
             <div class="search-bottom">
               <span class="search-hint"><span class="shield-icon">♢</span> Approved, current sources only <span class="hint-divider">·</span> <kbd>↵</kbd> to search <span class="hint-secondary">· Shift + Enter for a new line</span></span>
               <button class="ask-button" id="ask" type="button"><span>Search knowledge</span><span class="ask-arrow">↗</span></button>
@@ -81,13 +81,17 @@
         <div class="library-summary"><span class="library-icon">▤</span><div><strong id="current-source-count">2 current sources</strong><small><span class="status-dot"></span> Ready to search</small></div></div>
         <div class="source-list-heading"><span>YOUR DOCUMENTS</span><span id="library-total">03</span></div>
         <div id="source-list" class="source-list"></div>
-        <label class="upload-button" for="file-upload"><span>＋</span> Add PDF or Markdown</label>
+        <label class="upload-button" for="file-upload"><span>＋</span> Add a source</label>
+        <label class="upload-caption" for="markdown-source-type">Markdown type</label>
+        <select id="markdown-source-type" aria-label="Markdown source type">
+          <option value="markdown">Support documentation</option>
+          <option value="ticket">Support ticket</option>
+          <option value="wiki">Technical wiki</option>
+        </select>
         <input id="file-upload" type="file" accept=".pdf,application/pdf,.md,.markdown,text/markdown,text/plain" hidden />
-        <p class="upload-caption">Documents stay in this browser session. PDFs are limited to 2 MB and 100 pages; scanned PDFs need OCR. New uploads need approval before search.</p>
-        <a class="sample-download" href="examples/api-key-support.md" download><span>↓</span> Download a sample document</a>
-        <a class="sample-download" href="examples/mfa-and-sso-support.pdf" download><span>↓</span> Download a sample PDF</a>
-        <div class="panel-note"><span class="panel-note-check">✓</span><div><strong>Source controls enabled</strong><p>Outdated and unapproved documents stay out of search.</p></div></div>
-        <div class="panel-footer">SOURCE STATUS <span><i></i> All systems ready</span></div>
+        <p class="upload-caption">Files are saved to the knowledge base. PDFs are limited to 2 MB and 100 pages; scanned PDFs need OCR. Approve a saved source before searching it.</p>
+        <div class="panel-note"><span class="panel-note-check">✓</span><div><strong>Approval required</strong><p>Only saved, approved, current documents appear in search.</p></div></div>
+        <div class="panel-footer">DATABASE <span data-state="loading"><i></i> Connecting</span></div>
       </aside>
       <button class="panel-scrim" id="panel-scrim" type="button" aria-label="Close source library"></button>
     </div>

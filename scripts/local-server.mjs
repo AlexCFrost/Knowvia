@@ -2,11 +2,12 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { embedText } from "./src/gemini-embeddings.mjs";
-import { generateGroundedAnswer } from "./src/gemini-answers.mjs";
-import { extractPdfPages } from "./src/pdf-ingestion.mjs";
+import { embedText } from "../src/gemini-embeddings.mjs";
+import { generateGroundedAnswer } from "../src/gemini-answers.mjs";
+import { extractPdfPages } from "../src/pdf-ingestion.mjs";
+import knowledgeHandler from "../api/knowledge.mjs";
 
-const root = resolve(fileURLToPath(new URL(".", import.meta.url)));
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const port = Number(process.env.PORT || 4173);
 const mimeTypes = {
   ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
@@ -16,6 +17,25 @@ const mimeTypes = {
 
 const server = createServer(async (request, response) => {
   response.setHeader("X-Content-Type-Options", "nosniff");
+  if (new URL(request.url, "http://localhost").pathname === "/api/knowledge") {
+    try {
+      const body = request.method === "POST" ? await readJson(request, 4 * 1024 * 1024) : undefined;
+      const url = new URL(request.url, "http://localhost");
+      const apiResponse = {
+        setHeader: (name, value) => response.setHeader(name, value),
+        status(code) { this.code = code; return this; },
+        json(data) {
+          response.writeHead(this.code || 200, { "Content-Type": "application/json; charset=utf-8" });
+          response.end(JSON.stringify(data));
+          return this;
+        },
+      };
+      await knowledgeHandler({ method: request.method, body, query: Object.fromEntries(url.searchParams) }, apiResponse);
+    } catch (error) {
+      sendJson(response, 400, { error: error.message || "Knowledge request failed" });
+    }
+    return;
+  }
   if (request.method === "POST" && request.url === "/api/ingest-pdf") {
     try {
       const body = await readJson(request, 4 * 1024 * 1024);
