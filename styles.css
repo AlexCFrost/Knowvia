@@ -44,7 +44,8 @@ button { -webkit-tap-highlight-color: transparent; }
 .sidebar-user small { margin-top: 3px; color: #8993ac; font-size: 8px; }
 .user-menu { margin-left: auto; color: #8993ac; font-size: 18px; }
 
-.main { min-height: 100vh; margin-left: 226px; margin-right: 310px; }
+.main { min-height: 100vh; margin-left: 226px; margin-right: 310px; transition: margin-right .22s ease; }
+.app-shell.sources-closed .main { margin-right: 0; }
 .topbar { height: 60px; padding: 0 34px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e9ebf1; background: #fff; }
 .breadcrumbs { display: flex; align-items: center; gap: 10px; font-size: 10px; }
 .breadcrumbs span { color: #969cad; }
@@ -148,13 +149,13 @@ kbd { margin-left: 2px; padding: 2px 4px; border: 1px solid #e4e6ed; border-radi
 .page-footer button { margin-left: auto; border: 0; background: transparent; color: #6b61c9; font-size: 7px; cursor: pointer; }
 .page-footer button span { margin-left: 3px; }
 
-.sources-panel { position: fixed; z-index: 7; inset: 0 0 0 auto; width: 310px; padding: 25px 19px 16px; overflow: auto; border-left: 1px solid #e8eaf0; background: #fff; }
+.sources-panel { position: fixed; z-index: 7; inset: 0 0 0 auto; width: 310px; padding: 25px 19px 16px; overflow: auto; border-left: 1px solid #e8eaf0; background: #fff; transform: translateX(0); transition: transform .22s ease; }
+.sources-panel:not(.open) { transform: translateX(100%); }
 .panel-head { display: flex; align-items: flex-start; justify-content: space-between; }
 .panel-kicker { color: #999eac; font-size: 7px; font-weight: 700; letter-spacing: 1.2px; }
 .panel-head h2,.dialog-header h2 { margin: 5px 0 0; color: #30364a; font: 700 15px Manrope,sans-serif; letter-spacing: -.35px; }
 .icon-button { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid #e9ebf0; border-radius: 6px; background: #fff; color: #818797; font-size: 19px; cursor: pointer; }
 .icon-button:hover { background: #f7f7fb; color: #42485b; }
-.panel-head .icon-button { visibility: hidden; }
 .panel-description { margin: 10px 0 15px; color: #9298a7; font-size: 9px; line-height: 1.65; }
 .library-summary { min-height: 52px; margin-bottom: 20px; padding: 9px 10px; display: flex; align-items: center; gap: 9px; border: 1px solid #e9e9f3; border-radius: 7px; background: #fbfaff; }
 .library-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: #f0efff; color: #7065d3; font-size: 14px; }
@@ -240,7 +241,7 @@ kbd { margin-left: 2px; padding: 2px 4px; border: 1px solid #e4e6ed; border-radi
   .nav-count { position: absolute; margin: -22px 0 0 22px; padding: 2px 4px; font-size: 7px; }
   .sidebar-user { justify-content: center; padding-right: 0; padding-left: 0; }
   .main { margin-left: 68px; margin-right: 0; }
-  .sources-panel { width: 310px; transform: translateX(100%); transition: transform .22s ease; box-shadow: none; }
+  .sources-panel { width: 310px; transform: translateX(100%); box-shadow: none; }
   .sources-panel.open { transform: translateX(0); box-shadow: -18px 0 45px #171d3122; }
   .panel-head .icon-button { visibility: visible; }
   .panel-scrim.visible { position: fixed; inset: 0; z-index: 6; display: block; border: 0; background: #151b2b45; }

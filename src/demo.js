@@ -37,7 +37,10 @@ document.querySelectorAll("[data-query]").forEach((button) => {
     search();
   });
 });
-document.querySelector("#manage-docs").addEventListener("click", openSources);
+document.querySelector("#manage-docs").addEventListener("click", () => {
+  if (sourcesPanel.classList.contains("open")) closeSources();
+  else openSources();
+});
 document.querySelector("#manage-sources-footer").addEventListener("click", openSources);
 document.querySelector("#close-sources").addEventListener("click", closeSources);
 panelScrim.addEventListener("click", closeSources);
@@ -430,6 +433,8 @@ function appendHighlightedText(container, text, terms = []) {
 function openSources() {
   sourcesPanel.classList.add("open");
   sourcesPanel.setAttribute("aria-hidden", "false");
+  document.querySelector("#manage-docs").setAttribute("aria-expanded", "true");
+  document.querySelector(".app-shell").classList.remove("sources-closed");
   panelScrim.classList.add("visible");
   sourcesPanel.scrollTo({ top: 0, behavior: "smooth" });
   document.querySelector("#close-sources").focus();
@@ -438,7 +443,10 @@ function openSources() {
 function closeSources() {
   sourcesPanel.classList.remove("open");
   sourcesPanel.setAttribute("aria-hidden", "true");
+  document.querySelector("#manage-docs").setAttribute("aria-expanded", "false");
+  document.querySelector(".app-shell").classList.add("sources-closed");
   panelScrim.classList.remove("visible");
+  document.querySelector("#manage-docs").focus();
 }
 
 async function importMarkdown(event) {
