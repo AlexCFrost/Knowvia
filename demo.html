@@ -20,7 +20,7 @@
         </a>
         <div class="nav-label">WORKSPACE</div>
         <button class="nav-item active" type="button" aria-current="page"><span class="nav-icon">⌕</span><span>Knowledge assistant</span></button>
-        <button class="nav-item" id="manage-docs" type="button"><span class="nav-icon">▤</span><span>Knowledge sources</span><span class="nav-count" id="source-count">3</span></button>
+        <button class="nav-item" id="manage-docs" type="button" aria-expanded="true" aria-controls="sources-panel"><span class="nav-icon">▤</span><span>Knowledge sources</span><span class="nav-count" id="source-count">3</span></button>
         <div class="sidebar-note"><span class="note-icon">✳</span><p><strong>Grounded support</strong><br />Every result links back to its source.</p></div>
         <div class="sidebar-user"><div class="avatar">S</div><div><strong>Support team</strong><small>Internal workspace</small></div><span class="user-menu" aria-hidden="true">···</span></div>
       </aside>
@@ -75,7 +75,7 @@
         </div>
       </main>
 
-      <aside class="sources-panel" id="sources-panel" aria-label="Knowledge source library" aria-hidden="false">
+      <aside class="sources-panel open" id="sources-panel" aria-label="Knowledge source library" aria-hidden="false">
         <div class="panel-head"><div><span class="panel-kicker">DOCUMENT LIBRARY</span><h2>Knowledge sources</h2></div><button id="close-sources" class="icon-button" type="button" aria-label="Close source library">×</button></div>
         <p class="panel-description">Search includes approved, current documents. Older versions stay out of results.</p>
         <div class="library-summary"><span class="library-icon">▤</span><div><strong id="current-source-count">2 current sources</strong><small><span class="status-dot"></span> Ready to search</small></div></div>
