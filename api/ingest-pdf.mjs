@@ -20,6 +20,7 @@ export default async function handler(request, response) {
     const pages = await extractPdfPages(bytes);
     return response.status(200).json({ pages });
   } catch (error) {
+    console.error("PDF ingestion failed", error);
     const status = error instanceof RangeError || error instanceof TypeError ? 400 : 422;
     return response.status(status).json({ error: error.message || "Could not extract PDF text" });
   }
