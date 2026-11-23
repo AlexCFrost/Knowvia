@@ -1,6 +1,11 @@
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import { createRequire } from "node:module";
 import { ingestMarkdown, ingestPdfPages } from "./knowledge.mjs";
+import { pathToFileURL } from "node:url";
 export { ingestPdfPages } from "./knowledge.mjs";
+
+const require = createRequire(import.meta.url);
+pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs")).href;
 
 const MAX_PDF_BYTES = 2 * 1024 * 1024;
 const MAX_PAGES = 100;

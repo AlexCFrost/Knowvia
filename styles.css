@@ -28,6 +28,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .nav-label { margin: 45px 0 10px 10px; color: #77829f; font-size: 8px; font-weight: 700; letter-spacing: 1.25px; }
 .nav-item { width: 100%; min-height: 42px; margin: 2px 0; padding: 0 10px; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 7px; background: none; color: #aeb6cc; text-align: left; font-size: 11px; cursor: pointer; }
 .nav-item:hover { background: #212a43; color: #fff; }
+.nav-item:focus-visible { outline: 2px solid #a89eff; outline-offset: 2px; }
 .nav-item.active { background: #282f4a; color: #fff; }
 .nav-icon { width: 17px; color: #929db7; font-size: 19px; text-align: center; }
 .active .nav-icon { color: #b8adff; }
@@ -184,6 +185,9 @@ kbd { margin-left: 2px; padding: 2px 4px; border: 1px solid #e4e6ed; border-radi
 .upload-button.is-busy { border-style: solid; background: #f7f6ff; color: #7770ba; cursor: progress; }
 .upload-button[aria-disabled="true"] { pointer-events: none; }
 .upload-button span { font-size: 13px; }
+.sources-panel #markdown-source-type { width: 100%; min-height: 36px; margin-top: 5px; padding: 7px 32px 7px 10px; border: 1px solid #dfe3ed; border-radius: 7px; appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m2 4 4 4 4-4' fill='none' stroke='%23777f91' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center; color: #41495d; font-size: 10px; line-height: 1.3; cursor: pointer; }
+.sources-panel #markdown-source-type:focus-visible { outline: 2px solid #a9a1eb; outline-offset: 2px; }
+.sources-panel #markdown-source-type option { font-size: 13px; }
 .upload-caption { margin: 6px 0 0; color: #a0a4b0; font-size: 7px; text-align: center; }
 .sample-download { margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; color: #6d63ca; font-size: 7px; text-decoration: none; }
 .sample-download:hover { text-decoration: underline; text-underline-offset: 2px; }

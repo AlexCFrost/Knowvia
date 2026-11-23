@@ -431,6 +431,7 @@ function openSources() {
   sourcesPanel.classList.add("open");
   sourcesPanel.setAttribute("aria-hidden", "false");
   panelScrim.classList.add("visible");
+  sourcesPanel.scrollTo({ top: 0, behavior: "smooth" });
   document.querySelector("#close-sources").focus();
 }
 
@@ -520,6 +521,7 @@ async function importPdf(event, file) {
     renderSources();
     showToast(`Added “${title}”. Approve it before searching; citations will show PDF page numbers.`);
   } catch (error) {
+    console.error("PDF extraction failed:", error);
     showToast(error.message || "Could not read that PDF file.");
   } finally {
     event.target.value = "";
