@@ -84,6 +84,28 @@ export function ingestMarkdown(markdown, metadata, options = {}) {
   return chunks;
 }
 
+/** Chunk extracted PDF text by page while keeping citation page numbers. */
+export function ingestPdfPages(pages, metadata, options = {}) {
+  if (!Array.isArray(pages)) throw new TypeError("pages must be an array");
+  if (!metadata?.documentId || !metadata?.title || !metadata?.version) {
+    throw new TypeError("metadata requires documentId, title, and version");
+  }
+  const chunks = [];
+  for (const page of pages) {
+    if (!Number.isInteger(page?.pageNumber) || page.pageNumber < 1 || typeof page.text !== "string") {
+      throw new TypeError("each PDF page requires a positive pageNumber and text");
+    }
+    if (!page.text.trim()) continue;
+    const pageChunks = ingestMarkdown(page.text, metadata, options);
+    pageChunks.forEach((chunk, index) => chunks.push({
+      ...chunk,
+      id: `${metadata.documentId}:${metadata.version}:p${page.pageNumber}:${index + 1}`,
+      pageNumber: page.pageNumber,
+    }));
+  }
+  return chunks;
+}
+
 /** Return ranked, citation-ready evidence from approved current chunks only. */
 export function retrieveEvidence(query, chunks, limit = 5) {
   if (typeof query !== "string" || !query.trim()) return [];

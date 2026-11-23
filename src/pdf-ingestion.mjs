@@ -1,5 +1,6 @@
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { ingestMarkdown } from "./knowledge.mjs";
+import { ingestMarkdown, ingestPdfPages } from "./knowledge.mjs";
+export { ingestPdfPages } from "./knowledge.mjs";
 
 const MAX_PDF_BYTES = 2 * 1024 * 1024;
 const MAX_PAGES = 100;
@@ -56,28 +57,6 @@ export async function extractPdfPages(input, options = {}) {
     if (pdf) await pdf.cleanup();
     await loadingTask.destroy();
   }
-}
-
-/** Chunk extracted page text while preserving the original PDF page number. */
-export function ingestPdfPages(pages, metadata, options = {}) {
-  if (!Array.isArray(pages)) throw new TypeError("pages must be an array");
-  if (!metadata?.documentId || !metadata?.title || !metadata?.version) {
-    throw new TypeError("metadata requires documentId, title, and version");
-  }
-  const chunks = [];
-  for (const page of pages) {
-    if (!Number.isInteger(page?.pageNumber) || page.pageNumber < 1 || typeof page.text !== "string") {
-      throw new TypeError("each PDF page requires a positive pageNumber and text");
-    }
-    if (!page.text.trim()) continue;
-    const pageChunks = ingestMarkdown(page.text, metadata, options);
-    pageChunks.forEach((chunk, index) => chunks.push({
-      ...chunk,
-      id: `${metadata.documentId}:${metadata.version}:p${page.pageNumber}:${index + 1}`,
-      pageNumber: page.pageNumber,
-    }));
-  }
-  return chunks;
 }
 
 function toBytes(input) {
